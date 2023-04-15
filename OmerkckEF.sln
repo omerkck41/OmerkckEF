@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33516.290
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OmerkckEF.Biscom", "OmerkckEF.Bisco\OmerkckEF.Biscom.csproj", "{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestLab", "TestLab\TestLab.csproj", "{DDB7EFB4-4F34-4819-B730-14FE64327185}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DDB7EFB4-4F34-4819-B730-14FE64327185}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DDB7EFB4-4F34-4819-B730-14FE64327185}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DDB7EFB4-4F34-4819-B730-14FE64327185}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DDB7EFB4-4F34-4819-B730-14FE64327185}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1855DC96-135D-46C9-A94C-3D7995AE738D}
+	EndGlobalSection
+EndGlobal
