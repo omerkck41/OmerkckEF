@@ -24,6 +24,14 @@ namespace TestLab
             InitializeComponent();
 
 
+            var ac = baglanhayata.GetMappedClass<actor>("sakila");
+            foreach (actor item in ac)
+            {
+                MessageBox.Show(item.first_name);
+            }
+
+
+
             //async select
 
             DataTable? result = baglanhayata.RunSelectDataAsync("sakila", "select first_name from actor").Result;

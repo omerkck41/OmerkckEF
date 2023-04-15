@@ -3,7 +3,7 @@ using OmerkckEF.Biscom.Repositories;
 using static OmerkckEF.Biscom.Enums;
 using System.Data;
 using System.Data.Common;
-using Newtonsoft.Json;
+using System.Reflection;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -17,7 +17,7 @@ namespace OmerkckEF.Biscom.DBContext
         public string? Bisco_ErrorInfo { get; set; }
         #endregion
 
-        public Bisco(ServerDB SerderDb) 
+        public Bisco(ServerDB SerderDb)
         {
             this.serverDB = SerderDb;
             this.SelectDBConn = serverDB?.DataBaseType ?? DataBaseType.MySql;
@@ -57,7 +57,7 @@ namespace OmerkckEF.Biscom.DBContext
         {
             get { return connSchemaName; }
             set { connSchemaName = value; }
-        }        
+        }
 
         private string con_ServerUser => serverDB?.DBUser ?? "root";
         private string con_ServerPassword => serverDB?.DBPassword ?? "root123";
@@ -88,7 +88,7 @@ namespace OmerkckEF.Biscom.DBContext
                 }
 
                 if (this.MyConnection.State != ConnectionState.Open)
-                    this.MyConnection.Open(); 
+                    this.MyConnection.Open();
 
                 return true;
             }
@@ -181,7 +181,7 @@ namespace OmerkckEF.Biscom.DBContext
                 dbCommand.CommandType = CommandType;
 
                 if (Parameters != null)
-                { 
+                {
                     foreach(KeyValuePair<string, object> param in Parameters)
                     {
                         DbParameter DbParam = dbCommand.CreateParameter();
@@ -198,7 +198,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        
+
         public int RunNonQuery(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
         {
             return RunNonQuery(ConnSchemaName, QueryString, Parameters, Transaction, CommandType);
@@ -229,7 +229,7 @@ namespace OmerkckEF.Biscom.DBContext
                     {
                         using var command = ExeCommand(QueryString, Parameters, CommandType);
                         return command.ExecuteNonQuery();
-                    }                    
+                    }
                 }
             }
             catch (DbException ex)
@@ -358,7 +358,7 @@ namespace OmerkckEF.Biscom.DBContext
         }
 
         public async Task<DataTable?> RunSelectDataAsync(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
-        { 
+        {
             return await RunSelectDataAsync(QueryString, Parameters, Transaction, CommandType);
         }
         public async Task<DataTable?> RunSelectDataAsync(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
@@ -387,6 +387,85 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
         #endregion
+
+        #region Mapping Methods
+
+        public List<T>? GetMappedClass<T>(string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+        {
+            return GetMappedClass<T>(ConnSchemaName, WhereCond, Parameters, CommandType);
+        }
+        public List<T>? GetMappedClass<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+        {
+            try
+            {
+                using (this.MyConnection)
+                {
+                    if (!OpenConnection(Schema))
+                        return null;
+
+                    string QueryString = String.Format("Select * from {0}.{1} {2}", Schema, typeof(T).Name, WhereCond);
+                    using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    using var reader = command.ExecuteReader();
+                    var entities = new List<T>();
+
+                    while (reader.Read())
+                    {
+                        var entity = Activator.CreateInstance<T>();
+
+                        foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
+                        {
+                            if (reader.GetOrdinal(property.Name) < 0) continue;
+
+                            if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
+                                property.SetValue(entity, reader[property.Name]);
+                        }
+
+                        entities.Add(entity);
+                    }
+
+                    return entities;
+                }
+            }
+            catch (DbException ex)
+            {
+                throw new Exception("Executing TClass RunDataReader Error: " + ex.Message);
+            }
+        }
+
+        public static IEnumerable<PropertyInfo> GetClassProperties(Type ClassType, Type AttirbuteType)
+        {
+            if (ClassType == null) return new List<PropertyInfo>();
+
+            if (AttirbuteType == null) return ClassType.GetProperties();
+
+            return ClassType.GetProperties().Where(x => x.GetCustomAttributes(AttirbuteType, true).Any());
+        }
+        #endregion
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         #region IDisposable Members
         public void Dispose()
