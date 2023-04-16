@@ -389,42 +389,36 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Mapping Methods
-
-        public List<T>? GetMappedClass<T>(string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
-        {
-            return GetMappedClass<T>(ConnSchemaName, WhereCond, Parameters, CommandType);
-        }
+                
         public List<T>? GetMappedClass<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
             try
             {
-                using (this.MyConnection)
+                using var connection = this.MyConnection;
+                if (!OpenConnection(Schema))
+                    return null;
+
+                string QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
+                using var command = ExeCommand(QueryString, Parameters, CommandType);
+                using var reader = command.ExecuteReader();
+                var entities = new List<T>();
+
+                while (reader.Read())
                 {
-                    if (!OpenConnection(Schema))
-                        return null;
+                    var entity = Activator.CreateInstance<T>();
 
-                    string QueryString = String.Format("Select * from {0}.{1} {2}", Schema, typeof(T).Name, WhereCond);
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    using var reader = command.ExecuteReader();
-                    var entities = new List<T>();
-
-                    while (reader.Read())
+                    foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
                     {
-                        var entity = Activator.CreateInstance<T>();
+                        if (reader.GetOrdinal(property.Name) < 0) continue;
 
-                        foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
-                        {
-                            if (reader.GetOrdinal(property.Name) < 0) continue;
-
-                            if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-                                property.SetValue(entity, reader[property.Name]);
-                        }
-
-                        entities.Add(entity);
+                        if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
+                            property.SetValue(entity, reader[property.Name]);
                     }
 
-                    return entities;
+                    entities.Add(entity);
                 }
+
+                return entities;
             }
             catch (DbException ex)
             {
