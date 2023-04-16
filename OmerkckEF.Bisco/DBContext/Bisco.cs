@@ -376,10 +376,10 @@ namespace OmerkckEF.Biscom.DBContext
 
                     foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
                     {
-                        if (reader.GetOrdinal(property.Name) < 0) continue;
+                        if (!reader.HasColumn(property.Name)) continue;
 
                         if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-                            property.SetValue(entity, reader[property.Name]);
+                            Tools.ParsePrimitive(property, entity, reader[property.Name]);
                     }
 
                     entities.Add(entity);
@@ -392,6 +392,41 @@ namespace OmerkckEF.Biscom.DBContext
                 throw new Exception("Executing TClass RunDataReader Error: " + ex.Message);
             }
         }
+        public List<T>? GetMappedClassByQuery<T>(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+        {
+            try
+            {
+                using var connection = this.MyConnection;
+                if (!OpenConnection(connSchemaName))
+                    return null;
+
+                using var command = ExeCommand(QueryString, Parameters, CommandType);
+                using var reader = command.ExecuteReader();
+                var entities = new List<T>();
+
+                while (reader.Read())
+                {
+                    var entity = Activator.CreateInstance<T>();
+
+                    foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
+                    {
+                        if (!reader.HasColumn(property.Name)) continue;
+
+                        if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
+                            Tools.ParsePrimitive(property, entity, reader[property.Name]);
+                    }
+
+                    entities.Add(entity);
+                }
+
+                return entities;
+            }
+            catch (DbException ex)
+            {
+                throw new Exception("Executing TClass RunDataReader Error: " + ex.Message);
+            }
+        }
+
 
         public static IEnumerable<PropertyInfo> GetClassProperties(Type ClassType, Type AttirbuteType)
         {

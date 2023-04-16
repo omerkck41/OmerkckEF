@@ -23,7 +23,7 @@ namespace TestLab
             InitializeComponent();
             
 
-            var ac = baglanhayata.GetMappedClass<actor>();
+            var ac = baglanhayata.GetMappedClassByQuery<actor>("select first_name from actor");
             if(ac == null ) { return; }
             foreach (actor item in ac)
             {
