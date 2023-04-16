@@ -355,7 +355,7 @@ namespace OmerkckEF.Biscom.DBContext
 
         public List<T>? GetMappedClass<T>(string? WhereCond = null) where T : class, new()
         {
-            return GetMappedClass<T>(null, WhereCond, null, CommandType.Text);
+            return GetMappedClass<T>(connSchemaName, WhereCond, null, CommandType.Text);
         }
         public List<T>? GetMappedClass<T>(string? Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
