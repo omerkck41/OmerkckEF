@@ -10,17 +10,16 @@ namespace OmerkckEF.Biscom.DBContext
     public sealed partial class Bisco : IDisposable
     {
         #region Properties
-        public IDALFactory DALFactory { get; set; }
+        private IDALFactory DALFactory { get; set; }
         public ServerDB? serverDB { get; set; }
-        public DataBaseType SelectDBConn { get; set; }
-        public DbConnection? MyConnection { get; set; }
+        private DbConnection? MyConnection { get; set; }
         public string? Bisco_ErrorInfo { get; set; }
         #endregion
 
         public Bisco(ServerDB SerderDb)
         {
             this.serverDB = SerderDb;
-            this.SelectDBConn = serverDB?.DataBaseType ?? DataBaseType.MySql;
+            var SelectDBConn = serverDB?.DataBaseType ?? DataBaseType.MySql;
             this.DALFactory = DALFactoryBase.GetDataBase((DataBaseType)SelectDBConn);
 
             connSchemaName = this.serverDB?.DBSchema ?? "";
@@ -70,7 +69,7 @@ namespace OmerkckEF.Biscom.DBContext
 
         #endregion
         #region Connection
-        private bool OpenConnection(string schemaName)
+        private bool OpenConnection(string? schemaName)
         {
             try
             {
@@ -94,21 +93,13 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch (DbException ex)
             {
-                switch (ex.ErrorCode)
+                Bisco_ErrorInfo = ex.ErrorCode switch
                 {
-                    case 0:
-                        Bisco_ErrorInfo = "Server bağlantı hatası. Sistem yöneticisi ile görüşün.";
-                        break;
-                    case 1042:
-                        Bisco_ErrorInfo = "Server bulunamadı. DNS adresi yanlış olabilir.";
-                        break;
-                    case 1045:
-                        Bisco_ErrorInfo = "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.";
-                        break;
-                    default:
-                        Bisco_ErrorInfo = "Connection Error : " + ex.Message;
-                        break;
-                }
+                    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
+                    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
+                    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
+                    _ => "Connection Error : " + ex.Message,
+                };
                 return false;
             }
         }
@@ -136,36 +127,14 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch (DbException ex)
             {
-                switch (ex.ErrorCode)
+                Bisco_ErrorInfo = ex.ErrorCode switch
                 {
-                    case 0:
-                        Bisco_ErrorInfo = "Server bağlantı hatası. Sistem yöneticisi ile görüşün.";
-                        break;
-                    case 1042:
-                        Bisco_ErrorInfo = "Server bulunamadı. DNS adresi yanlış olabilir.";
-                        break;
-                    case 1045:
-                        Bisco_ErrorInfo = "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.";
-                        break;
-                    default:
-                        Bisco_ErrorInfo = "Connection Error : " + ex.Message;
-                        break;
-                }
+                    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
+                    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
+                    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
+                    _ => "Connection Error : " + ex.Message,
+                };
                 return false;
-            }
-        }
-        private void CloseConnection()
-        {
-            try
-            {
-                if (this.MyConnection?.State != ConnectionState.Closed)
-                {
-                    this.MyConnection?.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                Bisco_ErrorInfo = "While Close Connection, Error : " + ex.Message.ToString();
             }
         }
         #endregion
@@ -207,29 +176,25 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                using (this.MyConnection)
+                using var connection = this.MyConnection;
+                if (!OpenConnection(Schema))
+                    return -1;
+
+                if (Transaction)
                 {
-                    if (!OpenConnection(Schema))
-                        return -1;
+                    using var _transaction = this.MyConnection?.BeginTransaction();
+                    using var command = ExeCommand(QueryString, Parameters, CommandType);
 
-                    if (Transaction)
-                    {
-                        using (var _transaction = this.MyConnection?.BeginTransaction())
-                        {
-                            using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    command.Transaction = _transaction;
+                    int result = command.ExecuteNonQuery();
+                    _transaction?.Commit();
 
-                            command.Transaction = _transaction;
-                            int result = command.ExecuteNonQuery();
-                            _transaction?.Commit();
-
-                            return result;
-                        }
-                    }
-                    else
-                    {
-                        using var command = ExeCommand(QueryString, Parameters, CommandType);
-                        return command.ExecuteNonQuery();
-                    }
+                    return result;
+                }
+                else
+                {
+                    using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    return command.ExecuteNonQuery();
                 }
             }
             catch (DbException ex)
@@ -261,11 +226,11 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public IDataReader? RunDataReader(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DbDataReader? RunDataReader(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
         {
             return RunDataReader(ConnSchemaName, QueryString, Parameters, CommandType);
         }
-        public IDataReader? RunDataReader(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DbDataReader? RunDataReader(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
         {
             try
             {
@@ -273,7 +238,7 @@ namespace OmerkckEF.Biscom.DBContext
                 {
                     if (!OpenConnection(Schema))
                         return null;
-
+                    
                     using var command = ExeCommand(QueryString, Parameters, CommandType);
                     var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
@@ -333,16 +298,14 @@ namespace OmerkckEF.Biscom.DBContext
 
                     if (Transaction)
                     {
-                        using (var _transaction = this.MyConnection?.BeginTransaction())
-                        {
-                            using var command = ExeCommand(QueryString, Parameters, CommandType);
+                        using var _transaction = this.MyConnection?.BeginTransaction();
+                        using var command = ExeCommand(QueryString, Parameters, CommandType);
 
-                            command.Transaction = _transaction;
-                            int result = Convert.ToInt32(await command.ExecuteNonQueryAsync());
-                            _transaction?.Commit();
+                        command.Transaction = _transaction;
+                        int result = Convert.ToInt32(await command.ExecuteNonQueryAsync());
+                        _transaction?.Commit();
 
-                            return result;
-                        }
+                        return result;
                     }
                     else
                     {
@@ -357,21 +320,21 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public async Task<DataTable?> RunSelectDataAsync(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public async Task<DataTable> RunSelectDataAsync(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
         {
-            return await RunSelectDataAsync(QueryString, Parameters, Transaction, CommandType);
+            return await RunSelectDataAsync(ConnSchemaName,QueryString, Parameters, Transaction, CommandType);
         }
-        public async Task<DataTable?> RunSelectDataAsync(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public async Task<DataTable> RunSelectDataAsync(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
         {
             try
             {
                 using (this.MyConnection)
                 {
                     if (!await OpenConnectionAsync(Schema))
-                        return null;
+                        return new DataTable();
 
 
-                    DataTable? dataTable = new DataTable();
+                    DataTable? dataTable = new();
                     using var command = ExeCommand(QueryString, Parameters, CommandType);
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -389,8 +352,12 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Mapping Methods
-                
-        public List<T>? GetMappedClass<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+
+        public List<T>? GetMappedClass<T>(string? WhereCond = null) where T : class, new()
+        {
+            return GetMappedClass<T>(null, WhereCond, null, CommandType.Text);
+        }
+        public List<T>? GetMappedClass<T>(string? Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
             try
             {
@@ -435,21 +402,6 @@ namespace OmerkckEF.Biscom.DBContext
             return ClassType.GetProperties().Where(x => x.GetCustomAttributes(AttirbuteType, true).Any());
         }
         #endregion
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -7,8 +7,7 @@ namespace TestLab
 {
     public partial class Form1 : Form
     {
-        Bisco baglanhayata = new Bisco
-            (
+        readonly Bisco baglanhayata = new (
                 new ServerDB()
                 {
                     //DBIp = "127.0.0.1",
@@ -22,9 +21,10 @@ namespace TestLab
         public Form1()
         {
             InitializeComponent();
+            
 
-
-            var ac = baglanhayata.GetMappedClass<actor>("sakila");
+            var ac = baglanhayata.GetMappedClass<actor>();
+            if(ac == null ) { return; }
             foreach (actor item in ac)
             {
                 MessageBox.Show(item.first_name);
@@ -35,6 +35,7 @@ namespace TestLab
             //async select
 
             DataTable? result = baglanhayata.RunSelectDataAsync("sakila", "select first_name from actor").Result;
+            if(result == null ) { return; }
             foreach (DataRow adr in result.Rows) { MessageBox.Show(adr["first_name"].ToString()); }
 
 
@@ -45,18 +46,20 @@ namespace TestLab
 
             return;
 
-            baglanhayata.RunNonQuery("insert into actor (first_name,last_name) values ('ÖMER','ESRA')");
+            int insert = baglanhayata.RunNonQuery("insert into actor (first_name,last_name) values ('ÖMER','ESRA')");
 
-            Dictionary<string, object> studentGrades = new Dictionary<string, object>();
-            studentGrades.Add("@first_name", "omerkck");
-            studentGrades.Add("@last_name", "System");
+            Dictionary<string, object> studentGrades = new()
+            {
+                { "@first_name", "omerkck" },
+                { "@last_name", "System" }
+            };
 
             baglanhayata.RunNonQuery("sakila", "insert into actor (first_name,last_name) values (@first_name,@last_name)", studentGrades, true);
 
             MessageBox.Show("Test");
 
             using var reader = baglanhayata.RunDataReader("sakila", "select * from actor limit 3");
-            DataTable tt = new DataTable();
+            DataTable tt = new();
             tt.Load(reader);
             foreach (DataRow dr in tt.Rows)
                 MessageBox.Show(dr["first_name"].ToString());
@@ -69,11 +72,12 @@ namespace TestLab
                 MessageBox.Show(dr["first_name"].ToString());
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void Button1_Click(object sender, EventArgs e)
         {
             using var reader = baglanhayata.RunDataReader("sakila", "select * from actor limit 3");
-            DataTable tt = new DataTable();
-            tt.Load(reader);
+            DataTable tt = new();
+            if (reader != null)
+                tt.Load(reader);
             foreach (DataRow dr in tt.Rows)
                 MessageBox.Show(dr["first_name"].ToString());
 
