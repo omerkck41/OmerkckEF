@@ -4,6 +4,7 @@ using static OmerkckEF.Biscom.Enums;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using MySqlX.XDevAPI;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -11,18 +12,19 @@ namespace OmerkckEF.Biscom.DBContext
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
-        public ServerDB? serverDB { get; set; }
         private DbConnection? MyConnection { get; set; }
+        public DbServer? DbServer { get; set; }
+        private string? QueryString { get; set; }
         public string? Bisco_ErrorInfo { get; set; }
         #endregion
 
-        public Bisco(ServerDB SerderDb)
+        public Bisco(DbServer DbServer)
         {
-            this.serverDB = SerderDb;
-            var SelectDBConn = serverDB?.DataBaseType ?? DataBaseType.MySql;
+            this.DbServer = DbServer;
+            var SelectDBConn = this.DbServer?.DataBaseType ?? DataBaseType.MySql;
             this.DALFactory = DALFactoryBase.GetDataBase((DataBaseType)SelectDBConn);
 
-            connSchemaName = this.serverDB?.DBSchema ?? "";
+            connSchemaName = this.DbServer?.DbSchema ?? "";
         }
 
         #region ConnectionString
@@ -48,8 +50,8 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        private string con_ServerIP => serverDB?.DBIp ?? "127.0.0.1";
-        private int con_ServerPort => serverDB?.DBPort ?? 3306;
+        private string con_ServerIP => DbServer?.DbIp ?? "127.0.0.1";
+        private int con_ServerPort => DbServer?.DbPort ?? 3306;
 
         private string connSchemaName;
         public string ConnSchemaName
@@ -58,13 +60,13 @@ namespace OmerkckEF.Biscom.DBContext
             set { connSchemaName = value; }
         }
 
-        private string con_ServerUser => serverDB?.DBUser ?? "root";
-        private string con_ServerPassword => serverDB?.DBPassword ?? "root123";
-        private bool con_ServerPooling => serverDB?.DBPooling ?? true;
-        private int con_MaxPoolSize => serverDB?.DBMaxpoolsize ?? 100;
-        private int con_ConnectionLifeTime => serverDB?.DBConnLifetime ?? 300;
-        private int con_ConnectionTimeOut => serverDB?.DBConnTimeout ?? 500;
-        private bool con_AllowUserInput => serverDB?.DBAllowuserinput ?? true;
+        private string con_ServerUser => DbServer?.DbUser ?? "root";
+        private string con_ServerPassword => DbServer?.DbPassword ?? "root123";
+        private bool con_ServerPooling => DbServer?.DbPooling ?? true;
+        private int con_MaxPoolSize => DbServer?.DbMaxpoolsize ?? 100;
+        private int con_ConnectionLifeTime => DbServer?.DbConnLifetime ?? 300;
+        private int con_ConnectionTimeOut => DbServer?.DbConnTimeout ?? 500;
+        private bool con_AllowUserInput => DbServer?.DbAllowuserinput ?? true;
         public string ServerIP => con_ServerIP;
 
         #endregion
@@ -123,7 +125,9 @@ namespace OmerkckEF.Biscom.DBContext
                 if (this.MyConnection.State != ConnectionState.Open)
                     await this.MyConnection.OpenAsync();
 
-                return true;
+                Bisco_ErrorInfo = string.Empty;
+
+				return true;
             }
             catch (DbException ex)
             {
@@ -349,83 +353,59 @@ namespace OmerkckEF.Biscom.DBContext
                 throw new Exception("Executing RunSelectDataAsync Error: " + ex.Message);
             }
         }
-        #endregion
+		#endregion
 
-        #region Mapping Methods
+		#region Mapping Methods
+		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+		{
+			try
+			{
+				using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName))
+					return null;
 
-        public List<T>? GetMappedClass<T>(string? WhereCond = null) where T : class, new()
+				QueryString ??= $"Select * from {this.connSchemaName}.{typeof(T).Name}";
+
+				using var command = ExeCommand(QueryString, Parameters, CommandType);
+				using var reader = command.ExecuteReader();
+				var entities = new List<T>();
+
+				while (reader.Read())
+				{
+					var entity = Activator.CreateInstance<T>();
+
+					foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
+					{
+						if (!reader.HasColumn(property.Name)) continue;
+
+						if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
+							Tools.ParsePrimitive(property, entity, reader[property.Name]);
+					}
+
+					entities.Add(entity);
+				}
+
+				return entities;
+			}
+			catch (DbException ex)
+			{
+				throw new Exception("Executing Get Mapped Class Error: " + ex.Message);
+			}
+		}
+		public List<T>? GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
-            return GetMappedClass<T>(connSchemaName, WhereCond, null, CommandType.Text);
+			this.QueryString = $"Select * from {this.connSchemaName}.{typeof(T).Name} {WhereCond}";
+
+			return GetMappedClass<T>(QueryString, Parameters, CommandType);
         }
-        public List<T>? GetMappedClass<T>(string? Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+        public List<T>? GetMappedClassBySchema<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
-            try
-            {
-                using var connection = this.MyConnection;
-                if (!OpenConnection(Schema))
-                    return null;
+			this.QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
+            this.connSchemaName = Schema!;
 
-                string QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
-                using var command = ExeCommand(QueryString, Parameters, CommandType);
-                using var reader = command.ExecuteReader();
-                var entities = new List<T>();
-
-                while (reader.Read())
-                {
-                    var entity = Activator.CreateInstance<T>();
-
-                    foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
-                    {
-                        if (!reader.HasColumn(property.Name)) continue;
-
-                        if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-                            Tools.ParsePrimitive(property, entity, reader[property.Name]);
-                    }
-
-                    entities.Add(entity);
-                }
-
-                return entities;
-            }
-            catch (DbException ex)
-            {
-                throw new Exception("Executing TClass RunDataReader Error: " + ex.Message);
-            }
+			return GetMappedClass<T>(QueryString, Parameters, CommandType);
         }
-        public List<T>? GetMappedClassByQuery<T>(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
-        {
-            try
-            {
-                using var connection = this.MyConnection;
-                if (!OpenConnection(connSchemaName))
-                    return null;
-
-                using var command = ExeCommand(QueryString, Parameters, CommandType);
-                using var reader = command.ExecuteReader();
-                var entities = new List<T>();
-
-                while (reader.Read())
-                {
-                    var entity = Activator.CreateInstance<T>();
-
-                    foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
-                    {
-                        if (!reader.HasColumn(property.Name)) continue;
-
-                        if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-                            Tools.ParsePrimitive(property, entity, reader[property.Name]);
-                    }
-
-                    entities.Add(entity);
-                }
-
-                return entities;
-            }
-            catch (DbException ex)
-            {
-                throw new Exception("Executing TClass RunDataReader Error: " + ex.Message);
-            }
-        }
+        
 
 
         public static IEnumerable<PropertyInfo> GetClassProperties(Type ClassType, Type AttirbuteType)

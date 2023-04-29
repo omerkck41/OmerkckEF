@@ -8,26 +8,37 @@ namespace TestLab
     public partial class Form1 : Form
     {
         readonly Bisco baglanhayata = new (
-                new ServerDB()
+                new DbServer()
                 {
                     //DBIp = "127.0.0.1",
                     //DBPort = 3306
-                    DBSchema = "sakila",
-                    DBUser = "root",
-                    DBPassword = "554654",
+                    DbSchema = "sakila",
+                    DbUser = "root",
+                    DbPassword = "554654",
 
                 }
             );
-        public Form1()
+		readonly Bisco bisco = new(
+				new DbServer()
+				{
+					//DBIp = "127.0.0.1",
+					//DBPort = 3306
+					DbSchema = "sys",
+					DbUser = "root",
+					DbPassword = "1q2w3e4r",
+
+				}
+			);
+		public Form1()
         {
             InitializeComponent();
             
 
-            var ac = baglanhayata.GetMappedClassByQuery<actor>("select first_name from actor");
+            var ac = bisco.GetMappedClass<sys_config>();
             if(ac == null ) { return; }
-            foreach (actor item in ac)
+            foreach (sys_config item in ac)
             {
-                MessageBox.Show(item.first_name);
+                MessageBox.Show(item.variable);
             }
 
 
