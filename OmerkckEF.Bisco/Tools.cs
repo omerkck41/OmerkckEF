@@ -155,7 +155,6 @@ namespace OmerkckEF.Biscom
         {
             try
             {
-                string MsgError = string.Empty;
                 string RequiredError = string.Empty;
 				string UniqueError = string.Empty;
 				string? IdentityName = null;
@@ -205,7 +204,7 @@ namespace OmerkckEF.Biscom
 
 
 
-				return MsgError = RequiredError +"\n"+ UniqueError;
+				return RequiredError +"\n"+ UniqueError;
             }
             catch
             {
