@@ -1,14 +1,13 @@
 ﻿using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
 using static OmerkckEF.Biscom.Enums;
+using static OmerkckEF.Biscom.Tools;
 using System.Data;
 using System.Data.Common;
-using System.Reflection;
-using MySqlX.XDevAPI;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-    public sealed partial class Bisco : IDisposable
+	public sealed partial class Bisco : IDisposable
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
@@ -159,7 +158,7 @@ namespace OmerkckEF.Biscom.DBContext
                     {
                         DbParameter DbParam = dbCommand.CreateParameter();
                         DbParam.ParameterName = param.Key;
-                        DbParam.Value = param.Value;
+                        DbParam.Value = param.Value ?? DBNull.Value;
                         dbCommand.Parameters.Add(DbParam);
                     }
                 }
@@ -207,21 +206,21 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public object RunScaler(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
         {
             return RunScaler(ConnSchemaName, QueryString, Parameters, CommandType);
         }
-        public object RunScaler(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
         {
             try
             {
                 using (this.MyConnection)
                 {
                     if (!OpenConnection(Schema))
-                        return false;
+                        return null;
 
                     using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    return command?.ExecuteScalar() ?? false;
+                    return command?.ExecuteScalar() ?? null;
                 }
             }
             catch (DbException ex)
@@ -356,6 +355,9 @@ namespace OmerkckEF.Biscom.DBContext
 		#endregion
 
 		#region Mapping Methods
+		/// CRUD = RCUD :)) Read, Create, Update, Delete ///
+
+		#region Read
 		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
 		{
 			try
@@ -374,12 +376,20 @@ namespace OmerkckEF.Biscom.DBContext
 				{
 					var entity = Activator.CreateInstance<T>();
 
-					foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)).ToArray())
-					{
-						if (!reader.HasColumn(property.Name)) continue;
+                    //foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)))
+                    //{
+                    //	if (!reader.HasColumn(property.Name)) continue;
 
-						if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-							Tools.ParsePrimitive(property, entity, reader[property.Name]);
+                    //	if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
+                    //		Tools.ParsePrimitive(property, entity, reader[property.Name]);
+                    //}
+
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+						var propertyName = reader.GetName(i);
+						var propertyValue = reader.GetValue(i);
+						var propertyInfo = typeof(T).GetProperty(propertyName);
+						Tools.ParsePrimitive(propertyInfo!, entity, propertyValue);
 					}
 
 					entities.Add(entity);
@@ -405,17 +415,20 @@ namespace OmerkckEF.Biscom.DBContext
 
 			return GetMappedClass<T>(QueryString, Parameters, CommandType);
         }
+        #endregion
+        #region Create
+
+        #endregion
+        #region Update
+        #endregion
+        #region Delete
+
+        #endregion
+
+
+
+
         
-
-
-        public static IEnumerable<PropertyInfo> GetClassProperties(Type ClassType, Type AttirbuteType)
-        {
-            if (ClassType == null) return new List<PropertyInfo>();
-
-            if (AttirbuteType == null) return ClassType.GetProperties();
-
-            return ClassType.GetProperties().Where(x => x.GetCustomAttributes(AttirbuteType, true).Any());
-        }
         #endregion
 
 

@@ -1,4 +1,5 @@
 ﻿using static OmerkckEF.Biscom.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace OmerkckEF.Biscom
 {
@@ -10,12 +11,15 @@ namespace OmerkckEF.Biscom
 
     }
 
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter, AllowMultiple = false, Inherited = true)]
+    public class UniqueAttribute : ValidationAttribute
+	{
+		
+	}
+
     [AttributeUsage(AttributeTargets.Property)]
     public class DataNameAttribute : Attribute
     {
-        public string? IdentityColm { get; set; }
-        public bool IsUnique { get; set; }
-
         public DataNameAttribute()
         {
             _ValueNames = new List<string>();

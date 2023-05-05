@@ -1,14 +1,11 @@
 ﻿using OmerkckEF.Biscom;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
 
 namespace TestLab
 {
-    public class actor
+	public class actor
     {
+        [Key]
         [DataName]
         public int actor_id { get; set; }
         [DataName]

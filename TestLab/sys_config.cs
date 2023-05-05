@@ -1,12 +1,19 @@
 ﻿using OmerkckEF.Biscom;
+using System.ComponentModel.DataAnnotations;
 
 namespace TestLab
 {
 	public class sys_config
 	{
-        [DataName]
-        public string? variable { get; set; }
-        [DataName]
-        public string? value { get; set; }
-    }
+		[Key, DataName]
+		public int sys_id { get; set; }
+		[DataName, Required(ErrorMessage ="Değer Boş geçme!"), Unique]
+		public string? variable { get; set; }
+		[DataName,Unique]
+		public string? value { get; set; }
+		[DataName, Required(ErrorMessage = "Tarih Boş geçme!")]
+		public DateTime? set_time { get; set; }
+		[DataName, Required(ErrorMessage = "Kim Boş geçme!")]
+		public string? set_by { get; set; }
+	}
 }
