@@ -157,7 +157,7 @@ namespace OmerkckEF.Biscom
             {
                 string RequiredError = string.Empty;
 				string UniqueError = string.Empty;
-				string? IdentityName = null;
+				string IdentityName = string.Empty;
 				var IdentValue = 0;
                 Dictionary<string, object> dict = new();
 
@@ -170,7 +170,7 @@ namespace OmerkckEF.Biscom
 				                                               (x.GetValue(Entity) is null || string.IsNullOrEmpty(x.GetValue(Entity)!.ToString())))
 	                                               .Select(s => s.Name + " = " + s.GetCustomAttribute<RequiredAttribute>()?.ErrorMessage).ToArray();
 
-				RequiredError = required.Length > 0 ? $"- {string.Join("\n- ", required)}\n\n{required.Length} column(s) cannot be null!!!" : "";
+				RequiredError = required.Length > 0 ? $"- {string.Join("\n- ", required)}\n{required.Length} column(s) cannot be null!!!" : "";
 
 
                 ///Controls of Unique fields
@@ -196,15 +196,17 @@ namespace OmerkckEF.Biscom
                                             dict.Add($"@{f.Name}", colmValue);
                                             var ctrl = bisco.RunScaler(sqlQuery, dict);
 
-                                            UniqueError += ctrl != null ? f.Name + " : " + colmValue : null;
-											UniqueError += UniqueMsg != null ? (". ErrorMessage : " + UniqueMsg) : null;
+                                            if (!string.IsNullOrEmpty(UniqueMsg))
+                                                UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : null;
+                                            else
+                                                UniqueError += ctrl != null ? "- " + f.Name + " : " + colmValue + "\n" : null;
+											
 										}
 									});
-				UniqueError += UniqueError != null ? "\ncolumn(s) cannot be Unique!!!" : null;
+				UniqueError += !string.IsNullOrEmpty(UniqueError) ? $"{UniqueError.Split('\n').Length-1} column(s) must be Unique. The entered values are available.!!!" : null;
 
 
-
-				return RequiredError +"\n"+ UniqueError;
+				return RequiredError += !string.IsNullOrEmpty(UniqueError) ? "\n<----------------->\n" + UniqueError : null;
             }
             catch
             {

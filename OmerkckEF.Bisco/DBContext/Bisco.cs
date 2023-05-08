@@ -4,6 +4,7 @@ using static OmerkckEF.Biscom.Enums;
 using static OmerkckEF.Biscom.Tools;
 using System.Data;
 using System.Data.Common;
+using System.Reflection;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -376,20 +377,13 @@ namespace OmerkckEF.Biscom.DBContext
 				{
 					var entity = Activator.CreateInstance<T>();
 
-                    //foreach (var property in GetClassProperties(typeof(T), typeof(DataNameAttribute)))
-                    //{
-                    //	if (!reader.HasColumn(property.Name)) continue;
-
-                    //	if (!reader.IsDBNull(reader.GetOrdinal(property.Name)))
-                    //		Tools.ParsePrimitive(property, entity, reader[property.Name]);
-                    //}
-
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
 						var propertyName = reader.GetName(i);
 						var propertyValue = reader.GetValue(i);
 						var propertyInfo = typeof(T).GetProperty(propertyName);
-						Tools.ParsePrimitive(propertyInfo!, entity, propertyValue);
+                        if (propertyName != null && propertyValue != null && propertyInfo != null)
+                            Tools.ParsePrimitive(propertyInfo, entity, propertyValue);
 					}
 
 					entities.Add(entity);
@@ -411,8 +405,8 @@ namespace OmerkckEF.Biscom.DBContext
         public List<T>? GetMappedClassBySchema<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
         {
 			this.QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
-            this.connSchemaName = Schema!;
-
+            this.connSchemaName = Schema;
+            
 			return GetMappedClass<T>(QueryString, Parameters, CommandType);
         }
         #endregion

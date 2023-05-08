@@ -40,10 +40,10 @@ namespace TestLab
 
             var sys = new sys_config()
             {
-                set_by = DateTime.Now.ToString(),
-                set_time = DateTime.Now,
+                //set_by = DateTime.Now.ToString(),
+                //set_time = DateTime.Now,
                 sys_id = 0,
-                value = "o",
+                value = "311",
                 variable = "diagnostics.allow_i_s_tables"
             };
 
