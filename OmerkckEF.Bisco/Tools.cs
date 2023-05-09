@@ -144,7 +144,6 @@ namespace OmerkckEF.Biscom
 				return dict;
 			}
 		}
-
         public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
 		{
 			var pairs = keys.Select(key => string.Format(format, key)).ToList();
