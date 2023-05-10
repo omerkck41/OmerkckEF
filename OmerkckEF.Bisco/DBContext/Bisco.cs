@@ -5,6 +5,7 @@ using static OmerkckEF.Biscom.Tools;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using System.Linq.Expressions;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -207,11 +208,11 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public object? RunScaler(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
         {
-            return RunScaler(ConnSchemaName, QueryString, Parameters, CommandType);
+            return RunScaler(ConnSchemaName, QueryString, Parameters, Transaction, CommandType);
         }
-        public object? RunScaler(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
         {
             try
             {
@@ -220,13 +221,27 @@ namespace OmerkckEF.Biscom.DBContext
                     if (!OpenConnection(Schema))
                         return null;
 
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    return command?.ExecuteScalar() ?? null;
+                    if (Transaction)
+                    {
+						using var _transaction = this.MyConnection?.BeginTransaction();
+						using var command = ExeCommand(QueryString, Parameters, CommandType);
+
+						command.Transaction = _transaction;
+						object? result = command.ExecuteScalar() ?? null;
+						_transaction?.Commit();
+
+						return result;
+					}
+                    else
+                    {
+                        using var command = ExeCommand(QueryString, Parameters, CommandType);
+                        return command?.ExecuteScalar() ?? null;
+                    }
                 }
             }
             catch (DbException ex)
             {
-                throw new Exception("Executing NonScaler Error: " + ex.Message);
+                throw new Exception("Executing ExecuteScalar Error: " + ex.Message);
             }
         }
 
@@ -355,8 +370,7 @@ namespace OmerkckEF.Biscom.DBContext
         }
 		#endregion
 
-		#region Mapping Methods
-		/// CRUD = RCUD :)) Read, Create, Update, Delete ///
+		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read
 		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
@@ -411,7 +425,48 @@ namespace OmerkckEF.Biscom.DBContext
         }
         #endregion
         #region Create
+        public int DoInsert<T>(T Entity, bool GetById = false) where T : class
+		{
+            try
+            {
+                if (Entity == null) return -1;
 
+				using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName))
+					return -1;
+
+                Type tp = typeof(T);
+
+				Dictionary<string, object> dictParameters = GetDbPrameters<T>(Entity);
+
+                var Identity = Entity.GetKeyAttribute<T>();
+				var ReturnIdentity = this.DbServer?.DataBaseType switch
+				{
+					DataBaseType.MySql => "; SELECT @@Identity;",
+					DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
+					DataBaseType.Oracle => $" RETURNING {Identity} INTO :new_id;",
+					DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
+					DataBaseType.None => "; SELECT @@Identity;",
+					null => "; SELECT @@Identity;",
+					_ => "; SELECT @@Identity;",
+				};
+                var SqlQuery = $"Insert Into {this.connSchemaName}.{tp.Name} ({GetColumnNames<T>(false)}) values ({GetParameterNames<T>(false)})";
+
+
+                if (GetById)
+                {
+                    SqlQuery += ReturnIdentity;
+                    return Convert.ToInt32(RunScaler(SqlQuery, dictParameters));
+				}
+                else
+					return RunNonQuery(SqlQuery, dictParameters);
+            }
+            catch (DbException ex)
+			{
+				return -1;
+				throw new Exception("Executing Do Insert Error: " + ex.Message);
+			}
+        }
         #endregion
         #region Update
         #endregion

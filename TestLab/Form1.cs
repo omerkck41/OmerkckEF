@@ -37,6 +37,7 @@ namespace TestLab
         public Form1()
         {
             InitializeComponent();
+                       
 
             var sys = new sys_config()
             {
@@ -44,10 +45,11 @@ namespace TestLab
                 //set_time = DateTime.Now,
                 sys_id = 0,
                 value = "311",
-                variable = "diagnostics.allow_i_s_tables"
+                variable = "diagnostics.allow_i_s_tables_OMER"
             };
+			MessageBox.Show(bisco.DoInsert<sys_config>(sys).ToString());
 
-            MessageBox.Show(Tools.CheckAttributeColumn<sys_config>(sys, bisco));
+			MessageBox.Show(Tools.CheckAttributeColumn<sys_config>(sys, bisco));
 
             //var acc = new actor() { actor_id = 1, first_name = "Omer", last_name = "Kucuk", last_update = DateTime.Now };
 

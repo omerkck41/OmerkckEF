@@ -106,7 +106,7 @@ namespace OmerkckEF.Biscom
 			return ClassType.GetProperties().Where(x => IsKeyAttirbute ? x.GetCustomAttributes(AttirbuteType, true).Any()
 																	   : x.GetCustomAttributes(AttirbuteType, true).Any() && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any());
 		}
-        public static string GetKeyAttribute<T>() where T : class
+        public static object GetKeyAttribute<T>(this T obj) where T : class
 		{
             return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any()).Select(p => p.Name).FirstOrDefault()!;
 		}
