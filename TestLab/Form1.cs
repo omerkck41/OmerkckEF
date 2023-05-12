@@ -1,3 +1,4 @@
+using Amazon.Runtime.Internal.Transform;
 using OmerkckEF.Biscom;
 using OmerkckEF.Biscom.DBContext;
 
@@ -37,17 +38,61 @@ namespace TestLab
         public Form1()
         {
             InitializeComponent();
-                       
 
-            var sys = new sys_config()
+			List<sys_config> ll = new List<sys_config>();
+
+            var sys2 = new sys_config()
+            {
+				sys_id = 0,
+				value = "4",
+				variable = "kck"
+			};
+
+
+			var sys = new sys_config()
             {
                 //set_by = DateTime.Now.ToString(),
                 //set_time = DateTime.Now,
                 sys_id = 0,
-                value = "311",
-                variable = "diagnostics.allow_i_s_tables_OMER"
+                value = "3",
+                variable = "OMER"
             };
-			MessageBox.Show(bisco.DoInsert<sys_config>(sys).ToString());
+			var sys3 = new sys_config()
+			{
+				//set_by = DateTime.Now.ToString(),
+				//set_time = DateTime.Now,
+				sys_id = 0,
+				value = "5",
+				variable = "hakan"
+			};
+
+            //ll.Add(sys);
+            //         ll.Add(sys2);
+            //ll.Add(sys3);
+
+            MessageBox.Show(bisco.DoMultiMapInsert<sys_config>(ll).ToString());
+
+            return;
+			//parametre oluþtur.
+			var rr = ll.Select((x, i) => $"({Tools.GetParameterNames<sys_config>(false, i)})");
+			string query = $"insert into sys_config\n({Tools.GetColumnNames<sys_config>(false)})\nvalues\n" +
+                           $"{string.Join(',', rr)}";
+
+
+            Dictionary<string, object> dict = Tools.GetDbPrametersList<sys_config>(ll);
+
+			
+            bisco.RunNonQuery(query, dict);
+
+
+
+
+			MessageBox.Show(string.Join(',', dict));
+
+
+
+
+
 
 			MessageBox.Show(Tools.CheckAttributeColumn<sys_config>(sys, bisco));
 

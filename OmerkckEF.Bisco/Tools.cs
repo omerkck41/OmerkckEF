@@ -116,9 +116,9 @@ namespace OmerkckEF.Biscom
 
 			return $"{string.Join(", ", keys)}";
 		}
-		public static string GetParameterNames<T>(bool IsKeyAttirbute = true) where T : class
+		public static string GetParameterNames<T>(bool IsKeyAttirbute = true, int RowCount = -1) where T : class
 		{
-            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), IsKeyAttirbute).Select(x => $"@{x.Name}");
+            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), IsKeyAttirbute).Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
 
 			return $"{string.Join(", ", keys)}";
 		}
@@ -144,7 +144,14 @@ namespace OmerkckEF.Biscom
 				return dict;
 			}
 		}
-        public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
+		public static Dictionary<string, object> GetDbPrametersList<T>(IEnumerable<T> list)
+		{
+			return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute))
+						        .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value))
+				)
+				.ToDictionary(x => x.Key, x => x.Value);
+		}
+		public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
 		{
 			var pairs = keys.Select(key => string.Format(format, key)).ToList();
 			return string.Join(separator, pairs);

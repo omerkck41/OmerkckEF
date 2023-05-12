@@ -6,6 +6,7 @@ using System.Data;
 using System.Data.Common;
 using System.Reflection;
 using System.Linq.Expressions;
+using System.Transactions;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -425,7 +426,7 @@ namespace OmerkckEF.Biscom.DBContext
         }
         #endregion
         #region Create
-        public int DoInsert<T>(T Entity, bool GetById = false) where T : class
+        private int DoInsert<T>(T Entity, bool GetById = false, bool Transaction = false) where T : class
 		{
             try
             {
@@ -456,10 +457,10 @@ namespace OmerkckEF.Biscom.DBContext
                 if (GetById)
                 {
                     SqlQuery += ReturnIdentity;
-                    return Convert.ToInt32(RunScaler(SqlQuery, dictParameters));
+                    return Convert.ToInt32(RunScaler(SqlQuery, dictParameters, Transaction));
 				}
                 else
-					return RunNonQuery(SqlQuery, dictParameters);
+					return RunNonQuery(SqlQuery, dictParameters, Transaction);
             }
             catch (DbException ex)
 			{
@@ -467,6 +468,24 @@ namespace OmerkckEF.Biscom.DBContext
 				throw new Exception("Executing Do Insert Error: " + ex.Message);
 			}
         }
+        public int DoMapInsert<T>(T Entity, bool GetById = false, bool Transaction = false) where T : class
+        {
+            return DoInsert<T>(Entity, GetById, Transaction);
+		}
+        public bool DoMultiMapInsert<T>(IEnumerable<T> EntityList) where T : class
+        {
+			if (EntityList is null || EntityList.Count() <= 0 ) return false;
+
+			using var connection = this.MyConnection;
+			if (!OpenConnection(this.connSchemaName))
+				return false;
+
+			var GetParameterNames = string.Join(',', EntityList.Select((x, i) => $"({GetParameterNames<T>(false, i)})"));
+
+			var QueryString = $"Insert Into {this.connSchemaName}.{typeof(T).Name}\n({GetColumnNames<T>(false)})\nvalues\n {GetParameterNames}";
+                        
+			return RunNonQuery(QueryString, GetDbPrametersList<T>(EntityList),true) > 0;
+		}
         #endregion
         #region Update
         #endregion
