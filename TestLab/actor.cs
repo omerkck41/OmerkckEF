@@ -13,7 +13,7 @@ namespace TestLab
         [DataName]
         public string last_name { get; set; }
         [DataName]
-        public DateTime last_update { get; set; }
+        public DateTime? last_update { get; set; }
 
     }
 }

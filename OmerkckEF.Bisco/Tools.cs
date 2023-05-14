@@ -1,8 +1,13 @@
 ﻿using OmerkckEF.Biscom.DBContext;
+using SharpCompress.Common;
+using System.Collections;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using static Dapper.SqlMapper;
+using static MongoDB.Driver.WriteConcern;
 
 namespace OmerkckEF.Biscom
 {
@@ -108,50 +113,121 @@ namespace OmerkckEF.Biscom
 		}
         public static object GetKeyAttribute<T>(this T obj) where T : class
 		{
-            return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any()).Select(p => p.Name).FirstOrDefault()!;
+            return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                            .Select(p => p.Name).FirstOrDefault()!;
 		}
-		public static string GetColumnNames<T>(bool IsKeyAttirbute = true) where T : class
+
+
+
+		public static string GetColumnNames<T>() where T : class
 		{
-			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), IsKeyAttirbute).Select(x => x.Name);
+			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false).Select(x => x.Name);
 
 			return $"{string.Join(", ", keys)}";
 		}
-		public static string GetParameterNames<T>(bool IsKeyAttirbute = true, int RowCount = -1) where T : class
+		public static string GetParameterNames<T>(int RowCount = -1) where T : class
 		{
-            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), IsKeyAttirbute).Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
+            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                       .Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
 
 			return $"{string.Join(", ", keys)}";
 		}
 		public static string GetUpdateSetClause<T>() where T : class
 		{
-            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false).Select(p => $"{p.Name} = @{p.Name}");
+            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                       .Select(p => $"{p.Name} = @{p.Name}");
 
 			return $"{string.Join(", ", keys)}";
 		}
-		public static Dictionary<string, object> GetDbPrameters<T>(T Entity)
-		{
-			Dictionary<string, object> dict = new();
-			try
-			{
-                dict = GetProperties(typeof(T), typeof(DataNameAttribute))
-                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(Entity) ?? DBNull.Value))
+
+
+        public static Tuple<string, Dictionary<string, object>>? GetInsertColumnAndParameter<T>(T entity)
+        {            
+            try
+            {
+                Dictionary<string, object> dict = new();
+                dict = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                       .Where(x => x.GetValue(entity) != null)
+                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
                        .ToDictionary(x => x.Key, x => x.Value);
 
-				return dict;
-			}
-			catch
-			{
-				return dict;
-			}
-		}
-		public static Dictionary<string, object> GetDbPrametersList<T>(IEnumerable<T> list)
+                var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                           .Where(x => x.GetValue(entity) != null)
+                           .Select(x => x.Name);
+
+                string queryInsert = $"({string.Join(", ", keys)}) values (@{string.Join(", @", keys)})";
+
+                return new Tuple<string, Dictionary<string, object>>(queryInsert, dict);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        public static Tuple<string, Dictionary<string, object>>? GetInsertColumnAndParameterList<T>(IEnumerable<T> list)
+        {
+            try
+            {
+                Dictionary<string, object> dict = new();
+                dict = list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                           .Where(x => x.GetValue(item) != null)
+                           .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
+                           .ToDictionary(x => x.Key, x => x.Value);
+
+
+                var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
+
+                var keys = list.SelectMany((item, index) =>
+                                                propertyInfos.Where(p => p.GetValue(item) != null)
+                                                .Select(p => p.Name)
+                                          ).Distinct();
+
+                var valuesList = list.Select((item, index) => {
+                    var validProperties = propertyInfos.Where(p => p.GetValue(item) != null);
+                    var values = validProperties.Select(p => $"@{index}{p.Name}");
+                    return "(" + string.Join(", ", values) + ")";
+                });
+
+                string queryInsert = $"({string.Join(", ", keys)}) VALUES {string.Join(", ", valuesList)}";
+
+
+                return new Tuple<string, Dictionary<string, object>>(queryInsert, dict);
+            }
+            catch (Exception)
+            {
+                return null;
+            }            
+        }
+
+
+        public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
 		{
-			return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute))
-						        .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value))
-				)
-				.ToDictionary(x => x.Key, x => x.Value);
-		}
-		public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
+            return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute),false)
+                    .Where(x => x.GetValue(item) != null)
+                    .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
+                    .ToDictionary(x => x.Key, x => x.Value);
+        }
+        public static Dictionary<string, object> GetDbParameters<T>(T entity)
+        {
+            Dictionary<string, object> dict = new();
+            try
+            {
+                dict = GetProperties(typeof(T), typeof(DataNameAttribute))
+                       .Where(x => x.GetValue(entity) != null)
+                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
+                       .ToDictionary(x => x.Key, x => x.Value);
+
+                return dict;
+            }
+            catch
+            {
+                return dict;
+            }
+        }
+
+
+
+        public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
 		{
 			var pairs = keys.Select(key => string.Format(format, key)).ToList();
 			return string.Join(separator, pairs);

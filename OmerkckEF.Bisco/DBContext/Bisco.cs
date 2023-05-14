@@ -58,8 +58,8 @@ namespace OmerkckEF.Biscom.DBContext
         private string connSchemaName;
         public string ConnSchemaName
         {
-            get { return connSchemaName; }
-            set { connSchemaName = value; }
+            get => connSchemaName;
+            set => connSchemaName = value;
         }
 
         private string con_ServerUser => DbServer?.DbUser ?? "root";
@@ -426,68 +426,110 @@ namespace OmerkckEF.Biscom.DBContext
         }
         #endregion
         #region Create
-        private int DoInsert<T>(T Entity, bool GetById = false, bool Transaction = false) where T : class
+        private int DoInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
 		{
             try
             {
-                if (Entity == null) return -1;
+                if (entity == null) return -1;
 
-				using var connection = this.MyConnection;
-				if (!OpenConnection(this.connSchemaName))
-					return -1;
-
-                Type tp = typeof(T);
-
-				Dictionary<string, object> dictParameters = GetDbPrameters<T>(Entity);
-
-                var Identity = Entity.GetKeyAttribute<T>();
-				var ReturnIdentity = this.DbServer?.DataBaseType switch
-				{
-					DataBaseType.MySql => "; SELECT @@Identity;",
-					DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
-					DataBaseType.Oracle => $" RETURNING {Identity} INTO :new_id;",
-					DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
-					DataBaseType.None => "; SELECT @@Identity;",
-					null => "; SELECT @@Identity;",
-					_ => "; SELECT @@Identity;",
-				};
-                var SqlQuery = $"Insert Into {this.connSchemaName}.{tp.Name} ({GetColumnNames<T>(false)}) values ({GetParameterNames<T>(false)})";
+                using var connection = this.MyConnection;
+                if (!OpenConnection(this.connSchemaName))
+                    return -1;
 
 
-                if (GetById)
+                var getColmAndParams = GetInsertColumnAndParameter<T>(entity);
+                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
+
+                var identityColumn = entity.GetKeyAttribute<T>();
+                var ReturnIdentity = this.DbServer?.DataBaseType switch
                 {
-                    SqlQuery += ReturnIdentity;
-                    return Convert.ToInt32(RunScaler(SqlQuery, dictParameters, Transaction));
-				}
+                    DataBaseType.MySql => "; SELECT @@Identity;",
+                    DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
+                    DataBaseType.Oracle => $" RETURNING {identityColumn} INTO :new_id;",
+                    DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
+                    DataBaseType.None => "; SELECT @@Identity;",
+                    null => "; SELECT @@Identity;",
+                    _ => "; SELECT @@Identity;",
+                };
+                var sqlQuery = $"Insert Into {this.connSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}";
+
+
+                if (getById)
+                {
+                    object result = RunScaler(sqlQuery, parameters, transaction) ?? -1;
+                    if (result == null) return -1;
+
+                    return Convert.ToInt32(result);
+                }
                 else
-					return RunNonQuery(SqlQuery, dictParameters, Transaction);
+                {
+                    int affectedRows = RunNonQuery(sqlQuery, parameters, transaction);
+                    if (affectedRows <= 0) return -1;
+
+                    return affectedRows;
+                }
             }
-            catch (DbException ex)
-			{
-				return -1;
-				throw new Exception("Executing Do Insert Error: " + ex.Message);
-			}
+            catch (Exception ex)
+            {
+                return -1;
+                throw new Exception("Executing Do Insert Error: " + ex.Message);
+            }
         }
-        public int DoMapInsert<T>(T Entity, bool GetById = false, bool Transaction = false) where T : class
+        public int DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
         {
-            return DoInsert<T>(Entity, GetById, Transaction);
+            return DoInsert<T>(entity, getById, transaction);
 		}
-        public bool DoMultiMapInsert<T>(IEnumerable<T> EntityList) where T : class
+        public bool DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
         {
-			if (EntityList is null || EntityList.Count() <= 0 ) return false;
+            try
+            {
+                if (entityList is null || !entityList.Any()) return false;
 
-			using var connection = this.MyConnection;
-			if (!OpenConnection(this.connSchemaName))
-				return false;
+                using var connection = this.MyConnection;
 
-			var GetParameterNames = string.Join(',', EntityList.Select((x, i) => $"({GetParameterNames<T>(false, i)})"));
+                if (!OpenConnection(this.connSchemaName))
+                    return false;
 
-			var QueryString = $"Insert Into {this.connSchemaName}.{typeof(T).Name}\n({GetColumnNames<T>(false)})\nvalues\n {GetParameterNames}";
-                        
-			return RunNonQuery(QueryString, GetDbPrametersList<T>(EntityList),true) > 0;
-		}
+                var getMultiInsertParamColm = GetInsertColumnAndParameterList<T>(entityList);
+
+                var queryString = $"INSERT INTO {this.connSchemaName}.{typeof(T).Name} {getMultiInsertParamColm?.Item1}";
+
+                return RunNonQuery(queryString, getMultiInsertParamColm?.Item2, true) > 0;
+            }
+            catch (Exception ex)
+            {
+                return false;
+                throw new Exception("Executing DoMultiMapInsert Error: " + ex.Message);
+            }
+        }
         #endregion
         #region Update
+        public bool DoUpdate<T>(T entity, bool transaction = false) where T : class
+        {
+            try
+            {
+                if (entity == null) return false;
+
+                using var connection = this.MyConnection;
+                if (!OpenConnection(this.connSchemaName))
+                    return false;
+
+
+                var identityColumn = entity.GetKeyAttribute<T>();
+                Dictionary<string, object> parameters = GetDbParameters<T>(entity);
+
+
+                var sqlQuery = $"Update {this.connSchemaName}.{typeof(T).Name} set {GetUpdateSetClause<T>()} where {identityColumn}=@{identityColumn}";
+
+                var result = RunNonQuery(sqlQuery, GetDbParameters<T>(entity), transaction);
+
+                return result > 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
         #endregion
         #region Delete
 

@@ -38,6 +38,30 @@ namespace TestLab
         public Form1()
         {
             InitializeComponent();
+            List<actor> acc = new List<actor>();
+            var actor = new actor()
+            { 
+                actor_id = 0,
+                first_name = "yunus",
+                last_name = "kck",
+                //last_update = DateTime.Now
+            };
+            var actor1 = new actor()
+            {
+                actor_id = 0,
+                first_name = "emoþ",
+                last_name = "kck",
+                //last_update = DateTime.Now
+            };
+
+            acc.Add(actor);
+            acc.Add(actor1);
+
+            
+
+            MessageBox.Show(baglanhayata.DoMultiMapInsert<actor>(acc).ToString());
+
+
 
 			List<sys_config> ll = new List<sys_config>();
 
@@ -66,32 +90,13 @@ namespace TestLab
 				variable = "hakan"
 			};
 
-            //ll.Add(sys);
-            //         ll.Add(sys2);
-            //ll.Add(sys3);
-
-            MessageBox.Show(bisco.DoMultiMapInsert<sys_config>(ll).ToString());
+            ll.Add(sys);
+            ll.Add(sys2);
+            ll.Add(sys3);
+            var re = Tools.GetInsertColumnAndParameterList<sys_config>(ll);
+            MessageBox.Show(baglanhayata.DoMultiMapInsert<sys_config>(ll).ToString());
 
             return;
-			//parametre oluþtur.
-			var rr = ll.Select((x, i) => $"({Tools.GetParameterNames<sys_config>(false, i)})");
-			string query = $"insert into sys_config\n({Tools.GetColumnNames<sys_config>(false)})\nvalues\n" +
-                           $"{string.Join(',', rr)}";
-
-
-            Dictionary<string, object> dict = Tools.GetDbPrametersList<sys_config>(ll);
-
-			
-            bisco.RunNonQuery(query, dict);
-
-
-
-
-			MessageBox.Show(string.Join(',', dict));
-
-
-
-
 
 
 			MessageBox.Show(Tools.CheckAttributeColumn<sys_config>(sys, bisco));
