@@ -116,46 +116,39 @@ namespace OmerkckEF.Biscom
             return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
                                             .Select(p => p.Name).FirstOrDefault()!;
 		}
-
-
-
-		public static string GetColumnNames<T>() where T : class
+		private static string GetColumnNames<T>(T entity) where T : class
 		{
-			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false).Select(x => x.Name);
+			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+				       .Where(x => x.GetValue(entity) != null)
+				       .Select(x => x.Name);
 
 			return $"{string.Join(", ", keys)}";
 		}
-		public static string GetParameterNames<T>(int RowCount = -1) where T : class
-		{
-            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-                       .Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
-
-			return $"{string.Join(", ", keys)}";
-		}
-		public static string GetUpdateSetClause<T>() where T : class
+		private static string GetParameterNames<T>(T entity, int RowCount = -1) where T : class
 		{
             var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-                       .Select(p => $"{p.Name} = @{p.Name}");
+                       .Where(x => x.GetValue(entity) != null)
+					   .Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
+
+			return $"{string.Join(", ", keys)}";
+		}
+		private static string GetUpdateSetClause<T>(T entity) where T : class
+		{
+            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+				       .Where(x => x.GetValue(entity) != null)
+				       .Select(p => $"{p.Name} = @{p.Name}");
 
 			return $"{string.Join(", ", keys)}";
 		}
 
 
-        public static Tuple<string, Dictionary<string, object>>? GetInsertColumnAndParameter<T>(T entity)
+        public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
         {            
             try
             {
-                Dictionary<string, object> dict = new();
-                dict = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-                       .Where(x => x.GetValue(entity) != null)
-                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
-                       .ToDictionary(x => x.Key, x => x.Value);
+                Dictionary<string, object> dict = GetDbParameters<T>(entity);
 
-                var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-                           .Where(x => x.GetValue(entity) != null)
-                           .Select(x => x.Name);
-
-                string queryInsert = $"({string.Join(", ", keys)}) values (@{string.Join(", @", keys)})";
+                string queryInsert = $"({GetColumnNames<T>(entity)}) values ({GetParameterNames<T>(entity)})";
 
                 return new Tuple<string, Dictionary<string, object>>(queryInsert, dict);
             }
@@ -164,18 +157,13 @@ namespace OmerkckEF.Biscom
                 return null;
             }
         }
-        public static Tuple<string, Dictionary<string, object>>? GetInsertColumnAndParameterList<T>(IEnumerable<T> list)
+        public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParamList<T>(IEnumerable<T> list)
         {
             try
             {
-                Dictionary<string, object> dict = new();
-                dict = list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute), false)
-                           .Where(x => x.GetValue(item) != null)
-                           .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
-                           .ToDictionary(x => x.Key, x => x.Value);
+                Dictionary<string, object> dict = GetDbParametersList<T>(list);
 
-
-                var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
+				var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
 
                 var keys = list.SelectMany((item, index) =>
                                                 propertyInfos.Where(p => p.GetValue(item) != null)
@@ -200,37 +188,95 @@ namespace OmerkckEF.Biscom
         }
 
 
-        public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
+        public static Tuple<string, Dictionary<string, object>>? GetUpdateColmAndParams<T>(T entity, IEnumerable<string> fields) where T : class
+        {
+            try
+            {
+                Dictionary<string, object> dict = GetDbParameters<T>(entity, fields);
+
+				string editColm = GetUpdateSetClause<T>(entity);
+
+				return new Tuple<string, Dictionary<string, object>>(editColm, dict);
+			}
+            catch
+            {
+                return null;
+            }
+        }
+
+
+
+
+		public static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
+		{
+			Dictionary<string, object> dict = new();
+			try
+			{
+				dict = GetProperties(typeof(T), typeof(DataNameAttribute))
+					   .Where(x => x.GetValue(entity) != null && ((fields?.Contains(x.Name) ?? true) || x.GetCustomAttributes(typeof(KeyAttribute), true).Any()))
+					   .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
+					   .ToDictionary(x => x.Key, x => x.Value);
+
+				return dict;
+			}
+			catch
+			{
+				return dict;
+			}
+		}
+		public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
 		{
             return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute),false)
                     .Where(x => x.GetValue(item) != null)
                     .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
                     .ToDictionary(x => x.Key, x => x.Value);
         }
-        public static Dictionary<string, object> GetDbParameters<T>(T entity)
-        {
-            Dictionary<string, object> dict = new();
-            try
-            {
-                dict = GetProperties(typeof(T), typeof(DataNameAttribute))
-                       .Where(x => x.GetValue(entity) != null)
-                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
-                       .ToDictionary(x => x.Key, x => x.Value);
-
-                return dict;
-            }
-            catch
-            {
-                return dict;
-            }
-        }
-
 
 
         public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
 		{
 			var pairs = keys.Select(key => string.Format(format, key)).ToList();
 			return string.Join(separator, pairs);
+		}
+
+
+		public static List<string> GetChangedFields<T>(T newT, T oldT)
+		{
+            try
+            {
+				if (newT == null || oldT == null) return new();
+
+				List<string> fields = new();
+
+				var propertiesWithAttribute = newT.GetType()
+												  .GetProperties()
+												  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+												  .ToList();
+
+				foreach (var property in propertiesWithAttribute)
+				{
+					object oldValue = property.GetValue(oldT) ?? string.Empty;
+					object newValue = property.GetValue(newT) ?? string.Empty;
+
+					if (property.PropertyType == typeof(byte[]))
+					{
+						byte[] oldBytes = oldValue as byte[] ?? new byte[] { 0 };
+						byte[] newBytes = newValue as byte[] ?? new byte[] { 0 };
+
+						if (!oldBytes.SequenceEqual(newBytes))
+							fields.Add(property.Name);
+
+					}
+					else if (!newValue.Equals(oldValue))
+						fields.Add(property.Name);
+				}
+
+				return fields;
+			}
+            catch
+            {
+                return new();
+            }
 		}
 
 		public static string CheckAttributeColumn<T>(T Entity, Bisco bisco) where T : class

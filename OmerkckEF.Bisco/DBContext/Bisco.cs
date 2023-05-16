@@ -7,6 +7,8 @@ using System.Data.Common;
 using System.Reflection;
 using System.Linq.Expressions;
 using System.Transactions;
+using static Dapper.SqlMapper;
+using SharpCompress.Common;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -437,7 +439,7 @@ namespace OmerkckEF.Biscom.DBContext
                     return -1;
 
 
-                var getColmAndParams = GetInsertColumnAndParameter<T>(entity);
+                var getColmAndParams = GetInsertColmAndParams<T>(entity);
                 Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
 
                 var identityColumn = entity.GetKeyAttribute<T>();
@@ -490,11 +492,11 @@ namespace OmerkckEF.Biscom.DBContext
                 if (!OpenConnection(this.connSchemaName))
                     return false;
 
-                var getMultiInsertParamColm = GetInsertColumnAndParameterList<T>(entityList);
+                var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
 
-                var queryString = $"INSERT INTO {this.connSchemaName}.{typeof(T).Name} {getMultiInsertParamColm?.Item1}";
+                var queryString = $"INSERT INTO {this.connSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
 
-                return RunNonQuery(queryString, getMultiInsertParamColm?.Item2, true) > 0;
+                return RunNonQuery(queryString, getMultiInsertColmParams?.Item2, true) > 0;
             }
             catch (Exception ex)
             {
@@ -504,24 +506,26 @@ namespace OmerkckEF.Biscom.DBContext
         }
         #endregion
         #region Update
-        public bool DoUpdate<T>(T entity, bool transaction = false) where T : class
+        private bool DoUpdate<T>(T entity, IEnumerable<string> fields, bool transaction = false) where T : class
         {
             try
             {
-                if (entity == null) return false;
+                if (entity == null || !fields.Any()) return false;
 
                 using var connection = this.MyConnection;
                 if (!OpenConnection(this.connSchemaName))
                     return false;
 
+				var identityColumn = entity.GetKeyAttribute<T>();
+                
+                var _fields = string.Join(",", fields.Select(x => string.Format("{0}=@{0}", x.ToString())).ToList());
 
-                var identityColumn = entity.GetKeyAttribute<T>();
-                Dictionary<string, object> parameters = GetDbParameters<T>(entity);
 
+				var getUpdateColmParams = GetUpdateColmAndParams<T>(entity, fields);
 
-                var sqlQuery = $"Update {this.connSchemaName}.{typeof(T).Name} set {GetUpdateSetClause<T>()} where {identityColumn}=@{identityColumn}";
+                var sqlQuery = $"Update {this.connSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
 
-                var result = RunNonQuery(sqlQuery, GetDbParameters<T>(entity), transaction);
+                var result = RunNonQuery(sqlQuery, getUpdateColmParams?.Item2, transaction);
 
                 return result > 0;
             }
@@ -530,6 +534,19 @@ namespace OmerkckEF.Biscom.DBContext
                 return false;
             }
         }
+        public bool DoMapUpdate<T>(T currentT, T oldT, bool transaction = false) where T : class
+        {
+            
+            
+            
+            
+            
+            var fields = GetChangedFields<T>(currentT, oldT);
+
+			if (!fields.Any()) return false;
+
+			return DoUpdate<T>(currentT, fields, transaction);
+		}
         #endregion
         #region Delete
 

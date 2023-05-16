@@ -14,6 +14,6 @@ namespace TestLab
 		[DataName, Required(ErrorMessage = "Tarih Boş geçme!")]
 		public DateTime? set_time { get; set; }
 		[DataName, Required(ErrorMessage = "Kim Boş geçme!")]
-		public string? set_by { get; set; }
+		public string set_by { get; set; }
 	}
 }
