@@ -1,13 +1,8 @@
 ﻿using OmerkckEF.Biscom.DBContext;
-using SharpCompress.Common;
-using System.Collections;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
-using static Dapper.SqlMapper;
-using static MongoDB.Driver.WriteConcern;
 
 namespace OmerkckEF.Biscom
 {
@@ -44,56 +39,44 @@ namespace OmerkckEF.Biscom
 		/// <param name="Prop"></param>
 		/// <param name="Entity"></param>
 		/// <param name="Value"></param>
-		public static void ParsePrimitive(PropertyInfo Prop, object Entity, object Value)
+		public static void ParsePrimitive(PropertyInfo prop, object entity, object value)
         {
-            if (Prop == null || Entity == null || (Value == null || Value == DBNull.Value)) return;
+			if (prop == null || entity == null || (value == null || value == DBNull.Value)) return;
 
-            if (Prop.PropertyType == typeof(string))
-            {
-                Prop.SetValue(Entity, ((string)Value).Trim(), null);
-            }
-            else if (Prop.PropertyType == typeof(char) || Prop.PropertyType == typeof(char?))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, char.Parse((string)Value), null);
-            }
-            else if (Prop.PropertyType == typeof(int) || Prop.PropertyType == typeof(int?))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, int.Parse((string)Value), null);
-            }
-            else if (Prop.PropertyType == typeof(bool) || Prop.PropertyType == typeof(bool?))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, bool.Parse((string)Value), null);
-            }
-            else if (Prop.PropertyType == typeof(DateTime) || Prop.PropertyType == typeof(DateTime?))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, DateTime.Parse((string)Value), null);
-            }
-            else if (Prop.PropertyType == typeof(decimal) || Prop.PropertyType == typeof(decimal?))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, decimal.Parse((string)Value), null);
-            }
-            else if (Prop.PropertyType == typeof(byte[]))
-            {
-                if (Value == null)
-                    Prop.SetValue(Entity, null, null);
-                else
-                    Prop.SetValue(Entity, (byte[])Value, null);
-            }
+			switch (prop.PropertyType)
+			{
+				case Type t when t == typeof(string):
+					prop.SetValue(entity, value.ToString()?.Trim());
+					break;
+
+				case Type t when t == typeof(char) || t == typeof(char?):
+					prop.SetValue(entity, char.Parse(value.ToString() ?? ""));
+					break;
+
+				case Type t when t == typeof(int) || t == typeof(int?):
+					prop.SetValue(entity, int.Parse(value.ToString() ?? ""));
+					break;
+
+				case Type t when t == typeof(bool) || t == typeof(bool?):
+					prop.SetValue(entity, bool.Parse(value.ToString() ?? ""));
+					break;
+
+				case Type t when t == typeof(DateTime) || t == typeof(DateTime?):
+					prop.SetValue(entity, DateTime.Parse(value.ToString() ?? ""));
+					break;
+
+				case Type t when t == typeof(decimal) || t == typeof(decimal?):
+					prop.SetValue(entity, decimal.Parse(value.ToString() ?? ""));
+					break;
+
+				case Type t when t == typeof(byte[]):
+					if (value is byte[] byteArray)
+						prop.SetValue(entity, byteArray);
+					break;
+
+				default:
+					throw new NotSupportedException($"Type {prop.PropertyType} is not supported");
+			}			
 		}
 
 		/// <summary>
@@ -186,8 +169,6 @@ namespace OmerkckEF.Biscom
                 return null;
             }            
         }
-
-
         public static Tuple<string, Dictionary<string, object>>? GetUpdateColmAndParams<T>(T entity, IEnumerable<string> fields) where T : class
         {
             try
@@ -203,8 +184,6 @@ namespace OmerkckEF.Biscom
                 return null;
             }
         }
-
-
 
 
 		public static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
@@ -240,7 +219,7 @@ namespace OmerkckEF.Biscom
 		}
 
 
-		public static List<string> GetChangedFields<T>(T newT, T oldT)
+		public static List<string> GetChangedFields<T>(T newT, T oldT) where T : class
 		{
             try
             {

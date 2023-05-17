@@ -1,14 +1,12 @@
-﻿using OmerkckEF.Biscom.Interfaces;
-using OmerkckEF.Biscom.Repositories;
-using static OmerkckEF.Biscom.Enums;
+﻿using static OmerkckEF.Biscom.Enums;
 using static OmerkckEF.Biscom.Tools;
+using OmerkckEF.Biscom.Interfaces;
+using OmerkckEF.Biscom.Repositories;
 using System.Data;
 using System.Data.Common;
-using System.Reflection;
-using System.Linq.Expressions;
-using System.Transactions;
+using System.ComponentModel.DataAnnotations;
 using static Dapper.SqlMapper;
-using SharpCompress.Common;
+using MongoDB.Driver;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -376,7 +374,7 @@ namespace OmerkckEF.Biscom.DBContext
 		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read
-		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			try
 			{
@@ -413,13 +411,13 @@ namespace OmerkckEF.Biscom.DBContext
 				throw new Exception("Executing Get Mapped Class Error: " + ex.Message);
 			}
 		}
-		public List<T>? GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+		public List<T>? GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
         {
 			this.QueryString = $"Select * from {this.connSchemaName}.{typeof(T).Name} {WhereCond}";
 
 			return GetMappedClass<T>(QueryString, Parameters, CommandType);
         }
-        public List<T>? GetMappedClassBySchema<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class, new()
+        public List<T>? GetMappedClassBySchema<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
         {
 			this.QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
             this.connSchemaName = Schema;
@@ -534,14 +532,17 @@ namespace OmerkckEF.Biscom.DBContext
                 return false;
             }
         }
-        public bool DoMapUpdate<T>(T currentT, T oldT, bool transaction = false) where T : class
+        public bool DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
         {
-            
-            
-            
-            
-            
-            var fields = GetChangedFields<T>(currentT, oldT);
+            var identityValue = typeof(T).GetProperties()
+                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                         .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
+
+			var entity = GetMappedClassByWhere<T>(identityValue ?? "")?.FirstOrDefault();
+
+			if (entity == null) return false;
+
+			List<string> fields = GetChangedFields<T>(currentT, entity);
 
 			if (!fields.Any()) return false;
 

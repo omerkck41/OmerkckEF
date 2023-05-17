@@ -51,7 +51,7 @@ namespace TestLab
 			};
 
 
-			//MessageBox.Show(bisco.DoMapUpdate<sys_config>(current, sys2).ToString());
+			MessageBox.Show(bisco.DoMapUpdate<sys_config>(current).ToString());
 
 
 
