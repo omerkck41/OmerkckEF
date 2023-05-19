@@ -212,7 +212,41 @@ namespace OmerkckEF.Biscom
         }
 
 
-        public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
+		public static List<T> ToList<T>(this DataTable dt) where T : class
+		{
+			try
+			{
+				Type type = typeof(T);
+				List<T> list = new();
+
+				PropertyInfo[] properties = type.GetProperties();
+				foreach (DataRow dr in dt.Rows)
+				{
+					T obj = Activator.CreateInstance<T>();
+					foreach (PropertyInfo pi in properties)
+					{
+						if (dt.Columns.Contains(pi.Name))
+						{
+							object value = dr[pi.Name];
+							if (value != DBNull.Value)
+							{
+								if (Nullable.GetUnderlyingType(pi.PropertyType) != null)
+									pi.SetValue(obj, Convert.ChangeType(value, Nullable.GetUnderlyingType(pi.PropertyType) ?? pi.PropertyType));
+								else
+									pi.SetValue(obj, Convert.ChangeType(value, pi.PropertyType));
+							}
+						}
+					}
+					list.Add(obj);
+				}
+				return list;
+			}
+			catch (Exception ex)
+			{
+				throw new Exception("Executing DataTable to Class Error: ", ex);
+			}
+		}
+		public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
 		{
 			var pairs = keys.Select(key => string.Format(format, key)).ToList();
 			return string.Join(separator, pairs);

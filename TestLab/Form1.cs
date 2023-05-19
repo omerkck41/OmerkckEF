@@ -45,16 +45,23 @@ namespace TestLab
 
 			var current = new sys_config()
 			{
-				sys_id = 6,
+				sys_id = 7,
 				value = "64",
 				variable = "statement_truncate_len",
 			};
+			var current1 = new sys_config()
+			{
+				sys_id = 8,
+				value = "64",
+				variable = "statement_truncate_len",
+			};
+			ll.Add(current);
+			ll.Add(current1);
+			//MessageBox.Show(bisco.DoMapUpdate<sys_config>(current).ToString());
 
 
-			MessageBox.Show(bisco.DoMapUpdate<sys_config>(current).ToString());
-
-
-
+			bool bl = bisco.DoMapDeleteAll<sys_config>(ll);
+			MessageBox.Show(bl.ToString());
 		}
 
 	}

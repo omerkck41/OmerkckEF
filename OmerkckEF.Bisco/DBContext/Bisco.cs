@@ -1,12 +1,11 @@
-﻿using static OmerkckEF.Biscom.Enums;
-using static OmerkckEF.Biscom.Tools;
-using OmerkckEF.Biscom.Interfaces;
+﻿using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
+using static OmerkckEF.Biscom.Enums;
+using static OmerkckEF.Biscom.Tools;
+using System.ComponentModel.DataAnnotations;
+using MongoDB.Driver;
 using System.Data;
 using System.Data.Common;
-using System.ComponentModel.DataAnnotations;
-using static Dapper.SqlMapper;
-using MongoDB.Driver;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -550,14 +549,94 @@ namespace OmerkckEF.Biscom.DBContext
 		}
         #endregion
         #region Delete
+        public bool DoMapDelete<T>(T entity, bool transaction = false) where T : class
+        {
+            try
+            {
+				if (entity == null) return false;
 
-        #endregion
+				using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName))
+					return false;
+
+				var identityColumn = entity.GetKeyAttribute<T>();
+				var identityValue = typeof(T).GetProperties()
+										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+										 .Select(s => s.GetValue(entity)).FirstOrDefault();
+
+				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
+
+				var result = RunNonQuery(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
+
+				return result > 0;
+			}
+            catch
+            {
+                return false;
+            }
+        }
+        public bool DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
+        {
+            try
+            {
+				if (entityList is null || !entityList.Any()) return false;
+
+				using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName))
+					return false;
+
+				string identityColumn = entityList.FirstOrDefault()?.GetKeyAttribute<T>().ToString() ?? "";
+
+				string paramsColm = string.Join(", ", entityList.Select((x, index) => $"@{index}{identityColumn}"));
+
+                Dictionary<string, object> dictParams = entityList.SelectMany((item, index) => GetProperties(typeof(T), typeof(KeyAttribute), true)
+					.Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
+					.ToDictionary(x => x.Key, x => x.Value);
+
+				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
+
+				var result = RunNonQuery(sqlQuery, dictParams, transaction);
+
+				return result > 0;
+			}
+            catch
+            {
+                return false;
+            }
+        }
+        public bool DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return false;
+
+				using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName))
+					return false;
+
+                var dataName = typeof(T).GetProperties()
+                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
+
+				if (dataName == null) return false;
+
+				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
+
+                var result = RunNonQuery(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
+
+				return result > 0;
+			}
+            catch
+            {
+                return false;
+            }
+        }
+		#endregion
 
 
 
 
-        
-        #endregion
+
+		#endregion
 
 
 
@@ -569,8 +648,8 @@ namespace OmerkckEF.Biscom.DBContext
 
 
 
-        #region IDisposable Members
-        public void Dispose()
+		#region IDisposable Members
+		public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
