@@ -1,10 +1,9 @@
-﻿using MySqlX.XDevAPI;
+﻿using MongoDB.Driver;
+using MySqlX.XDevAPI.Common;
 using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
 using System.Data;
 using System.Data.Common;
-using System.Runtime.CompilerServices;
-using ZstdSharp;
 using static OmerkckEF.Biscom.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
@@ -15,7 +14,6 @@ namespace OmerkckEF.Biscom.DBContext
         private IDALFactory DALFactory { get; set; }
         public DbConnection? MyConnection { get; set; }
         public DbServer? DbServer { get; set; }
-        private string? QueryString { get; set; }
         public string? Bisco_ErrorInfo { get; set; }
         #endregion
 
@@ -173,109 +171,111 @@ namespace OmerkckEF.Biscom.DBContext
         }
 
 
-        public int RunNonQuery(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<int> RunNonQuery(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             return RunNonQuery(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public int RunNonQuery(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<int> RunNonQuery(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
                 this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-                if (!OpenConnection(this.connSchemaName)) return -1;
-                using (MyConnection)
+                if (!OpenConnection(this.connSchemaName)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                    if (transaction)
+				int exeResult = 0;
+				using (MyConnection)
+                    
+					if (transaction)
                     {
                         using var _transaction = this.MyConnection?.BeginTransaction();
                         using var command = ExeCommand(queryString, parameters, commandType);
 
                         command.Transaction = _transaction;
-                        int result = command.ExecuteNonQuery();
+					    exeResult = command.ExecuteNonQuery();
                         _transaction?.Commit();
-
-                        return result;
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
-                        return command.ExecuteNonQuery();
-                    }
-            }
+                        exeResult = command.ExecuteNonQuery();
+					}
+
+				return new Result<int> { IsSuccess = true, Data = exeResult };
+			}
             catch (DbException ex)
             {
-                throw new Exception("Executing NonQuery Error: " + ex.Message);
+				return new Result<int> { IsSuccess = false, Message = "Executing NonQuery Error: " + ex.Message };
             }
         }
 
-        public object? RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<object?> RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             return RunScaler(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public object? RunScaler(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<object?> RunScaler(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
 				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!OpenConnection(this.connSchemaName)) return null;
+				if (!OpenConnection(this.connSchemaName)) return new Result<object?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 				using var connection = this.MyConnection;
 
+                object? result;
 				if (transaction)
                 {
                     using var _transaction = this.MyConnection?.BeginTransaction();
                     using var command = ExeCommand(queryString, parameters, commandType);
 
                     command.Transaction = _transaction;
-                    object? result = command.ExecuteScalar() ?? null;
-                    _transaction?.Commit();
-
-                    return result;
+                    result = command.ExecuteScalar() ?? null;
+                    _transaction?.Commit();                    
                 }
                 else
                 {
                     using var command = ExeCommand(queryString, parameters, commandType);
-                    return command?.ExecuteScalar() ?? null;
+					result = command?.ExecuteScalar() ?? null;
                 }
-            }
+				return new Result<object?> { IsSuccess = true, Data = result };
+			}
             catch (DbException ex)
             {
-                throw new Exception("Executing ExecuteScalar Error: " + ex.Message);
-            }
+				return new Result<object?> { IsSuccess = false, Message = "Executing ExecuteScalar Error: " + ex.Message };
+			}
         }
 
-        public DbDataReader? RunDataReader(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        public Result<DbDataReader?> RunDataReader(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             return RunDataReader(this.connSchemaName, queryString, parameters, commandType);
         }
-        public DbDataReader? RunDataReader(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        public Result<DbDataReader?> RunDataReader(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
 				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!OpenConnection(this.connSchemaName)) return null;
-				
-                using var connection = this.MyConnection;
+				if (!OpenConnection(this.connSchemaName)) return new Result<DbDataReader?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+				using var connection = this.MyConnection;
 				using var command = ExeCommand(queryString, parameters, commandType);
                 var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
-                return reader;
-            }
+				return new Result<DbDataReader?> { IsSuccess = true, Data = reader };
+			}
             catch (DbException ex)
             {
-                throw new Exception("Executing RunDataReader Error: " + ex.Message);
-            }
+				return new Result<DbDataReader?> { IsSuccess = false, Message = "Executing RunDataReader Error: " + ex.Message };
+			}
         }
 
-        public DataTable? RunDataTable(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        public Result<DataTable?> RunDataTable(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             return RunDataTable(this.connSchemaName, queryString, parameters, commandType);
         }
-        public DataTable? RunDataTable(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        public Result<DataTable?> RunDataTable(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
 				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!OpenConnection(this.connSchemaName)) return null;
+				if (!OpenConnection(this.connSchemaName)) return new Result<DataTable?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 				using var connection = this.MyConnection;
 
 				using var command = ExeCommand(queryString, parameters, commandType);
@@ -285,12 +285,12 @@ namespace OmerkckEF.Biscom.DBContext
                 if (dataReader != null && !dataReader.IsClosed)
                     dataTable.Load(dataReader);
 
-                return dataTable;
-            }
+				return new Result<DataTable?> { IsSuccess = true, Data = dataTable };
+			}
             catch (DbException ex)
             {
-                throw new Exception("Executing RunDataTable Error: " + ex.Message);
-            }
+				return new Result<DataTable?> { IsSuccess = false, Message = "Executing RunDataTable Error: " + ex.Message };
+			}
         }
         #endregion
 

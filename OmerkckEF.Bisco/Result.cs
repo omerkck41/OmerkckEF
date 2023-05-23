@@ -6,6 +6,7 @@
         {
             this.IsSuccess = false;
 			this.Data = Activator.CreateInstance<T>();
+			this.Message = "Great, Everything is fine!!!";
         }
 
         public bool IsSuccess { get; set; }

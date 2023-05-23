@@ -79,17 +79,7 @@ namespace TestLab
 			ll.Add(current);
 			ll.Add(current1);
 
-			for (int i = 0; i < 50000; i++)
-			{
-				//string sss = bisco.MyConnection?.State.ToString() ?? string.Empty;
-				//MessageBox.Show(sss);
-
-				bisco.RunNonQuery("insert into sys.sys_config (variable,value) values ('omer','kck')");
-
-				//string sss1 = bisco.MyConnection?.State.ToString() ?? string.Empty;
-				//MessageBox.Show(sss1);
-			}
-
+			
 			
 		}
 
