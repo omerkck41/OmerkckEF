@@ -1,4 +1,6 @@
 using Amazon.Runtime.Internal.Transform;
+using Microsoft.VisualBasic.ApplicationServices;
+using MySqlX.XDevAPI;
 using OmerkckEF.Biscom;
 using OmerkckEF.Biscom.DBContext;
 
@@ -35,10 +37,29 @@ namespace TestLab
 					DbPassword = "1q2w3e4r",
 
 				});
+		readonly DbServer dbServer = new DbServer()
+		{
+			//DBIp = "127.0.0.1",
+			//DBPort = 3306
+			DbSchema = "sys",
+			DbUser = "root",
+			DbPassword = "1q2w3e4r",
+		};
+
+		readonly EntityDbHelper ee = new(new DbServer()
+		{
+			//DBIp = "127.0.0.1",
+			//DBPort = 3306
+			DbSchema = "sys",
+			DbUser = "root",
+			DbPassword = "1q2w3e4r",
+
+		});
+
+
 		public Form1()
 		{
 			InitializeComponent();
-
 
 
 			List<sys_config> ll = new List<sys_config>();
@@ -57,11 +78,27 @@ namespace TestLab
 			};
 			ll.Add(current);
 			ll.Add(current1);
-			//MessageBox.Show(bisco.DoMapUpdate<sys_config>(current).ToString());
 
+			for (int i = 0; i < 50000; i++)
+			{
+				//string sss = bisco.MyConnection?.State.ToString() ?? string.Empty;
+				//MessageBox.Show(sss);
 
-			bool bl = bisco.DoMapDeleteAll<sys_config>(ll);
-			MessageBox.Show(bl.ToString());
+				bisco.RunNonQuery("insert into sys.sys_config (variable,value) values ('omer','kck')");
+
+				//string sss1 = bisco.MyConnection?.State.ToString() ?? string.Empty;
+				//MessageBox.Show(sss1);
+			}
+
+			
+		}
+
+		async void gett()
+		{
+			var id = "5".CreateParameters("Id");
+
+			var result = await ee.GetMapClassByIdAsync<sys_config>("@Id",id).ConfigureAwait(false);
+			MessageBox.Show(result?.value);
 		}
 
 	}

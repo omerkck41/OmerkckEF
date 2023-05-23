@@ -28,18 +28,33 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
+			dgrid = new DataGridView();
+			((System.ComponentModel.ISupportInitialize)dgrid).BeginInit();
 			SuspendLayout();
+			// 
+			// dgrid
+			// 
+			dgrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+			dgrid.Location = new Point(12, 12);
+			dgrid.Name = "dgrid";
+			dgrid.RowTemplate.Height = 25;
+			dgrid.Size = new Size(240, 150);
+			dgrid.TabIndex = 0;
 			// 
 			// Form1
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
 			ClientSize = new Size(800, 450);
+			Controls.Add(dgrid);
 			Name = "Form1";
 			Text = "Form1";
+			((System.ComponentModel.ISupportInitialize)dgrid).EndInit();
 			ResumeLayout(false);
 		}
 
 		#endregion
+
+		private DataGridView dgrid;
 	}
 }

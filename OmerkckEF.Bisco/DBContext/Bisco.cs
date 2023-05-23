@@ -1,19 +1,19 @@
-﻿using OmerkckEF.Biscom.Interfaces;
+﻿using MySqlX.XDevAPI;
+using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
-using static OmerkckEF.Biscom.Enums;
-using static OmerkckEF.Biscom.Tools;
-using System.ComponentModel.DataAnnotations;
-using MongoDB.Driver;
 using System.Data;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
+using ZstdSharp;
+using static OmerkckEF.Biscom.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-	public sealed partial class Bisco : IDisposable
+	public partial class Bisco : IDisposable
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
-        private DbConnection? MyConnection { get; set; }
+        public DbConnection? MyConnection { get; set; }
         public DbServer? DbServer { get; set; }
         private string? QueryString { get; set; }
         public string? Bisco_ErrorInfo { get; set; }
@@ -72,7 +72,7 @@ namespace OmerkckEF.Biscom.DBContext
 
         #endregion
         #region Connection
-        private bool OpenConnection(string? schemaName)
+        public bool OpenConnection(string? schemaName)
         {
             try
             {
@@ -106,7 +106,7 @@ namespace OmerkckEF.Biscom.DBContext
                 return false;
             }
         }
-        private async Task<bool> OpenConnectionAsync(string schemaName)
+		public async Task<bool> OpenConnectionAsync(string schemaName)
         {
             try
             {
@@ -128,7 +128,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 Bisco_ErrorInfo = string.Empty;
 
-				return true;
+                return true;
             }
             catch (DbException ex)
             {
@@ -145,18 +145,18 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Regular Operations (Adapter, Query etc.)
-        public DbCommand ExeCommand(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DbCommand ExeCommand(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
                 DbCommand dbCommand = (DbCommand)this.DALFactory.IDbCommand();
                 dbCommand.Connection = this.MyConnection;
-                dbCommand.CommandText = QueryString;
-                dbCommand.CommandType = CommandType;
+                dbCommand.CommandText = queryString;
+                dbCommand.CommandType = commandType;
 
-                if (Parameters != null)
+                if (parameters != null)
                 {
-                    foreach(KeyValuePair<string, object> param in Parameters)
+                    foreach (KeyValuePair<string, object> param in parameters)
                     {
                         DbParameter DbParam = dbCommand.CreateParameter();
                         DbParam.ParameterName = param.Key;
@@ -173,34 +173,34 @@ namespace OmerkckEF.Biscom.DBContext
         }
 
 
-        public int RunNonQuery(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public int RunNonQuery(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
-            return RunNonQuery(ConnSchemaName, QueryString, Parameters, Transaction, CommandType);
+            return RunNonQuery(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public int RunNonQuery(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public int RunNonQuery(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
-                using var connection = this.MyConnection;
-                if (!OpenConnection(Schema))
-                    return -1;
+                this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+                if (!OpenConnection(this.connSchemaName)) return -1;
+                using (MyConnection)
 
-                if (Transaction)
-                {
-                    using var _transaction = this.MyConnection?.BeginTransaction();
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    if (transaction)
+                    {
+                        using var _transaction = this.MyConnection?.BeginTransaction();
+                        using var command = ExeCommand(queryString, parameters, commandType);
 
-                    command.Transaction = _transaction;
-                    int result = command.ExecuteNonQuery();
-                    _transaction?.Commit();
+                        command.Transaction = _transaction;
+                        int result = command.ExecuteNonQuery();
+                        _transaction?.Commit();
 
-                    return result;
-                }
-                else
-                {
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    return command.ExecuteNonQuery();
-                }
+                        return result;
+                    }
+                    else
+                    {
+                        using var command = ExeCommand(queryString, parameters, commandType);
+                        return command.ExecuteNonQuery();
+                    }
             }
             catch (DbException ex)
             {
@@ -208,35 +208,33 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public object? RunScaler(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
-            return RunScaler(ConnSchemaName, QueryString, Parameters, Transaction, CommandType);
+            return RunScaler(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public object? RunScaler(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public object? RunScaler(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
-                using (this.MyConnection)
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!OpenConnection(this.connSchemaName)) return null;
+				using var connection = this.MyConnection;
+
+				if (transaction)
                 {
-                    if (!OpenConnection(Schema))
-                        return null;
+                    using var _transaction = this.MyConnection?.BeginTransaction();
+                    using var command = ExeCommand(queryString, parameters, commandType);
 
-                    if (Transaction)
-                    {
-						using var _transaction = this.MyConnection?.BeginTransaction();
-						using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    command.Transaction = _transaction;
+                    object? result = command.ExecuteScalar() ?? null;
+                    _transaction?.Commit();
 
-						command.Transaction = _transaction;
-						object? result = command.ExecuteScalar() ?? null;
-						_transaction?.Commit();
-
-						return result;
-					}
-                    else
-                    {
-                        using var command = ExeCommand(QueryString, Parameters, CommandType);
-                        return command?.ExecuteScalar() ?? null;
-                    }
+                    return result;
+                }
+                else
+                {
+                    using var command = ExeCommand(queryString, parameters, commandType);
+                    return command?.ExecuteScalar() ?? null;
                 }
             }
             catch (DbException ex)
@@ -245,24 +243,22 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public DbDataReader? RunDataReader(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DbDataReader? RunDataReader(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
-            return RunDataReader(ConnSchemaName, QueryString, Parameters, CommandType);
+            return RunDataReader(this.connSchemaName, queryString, parameters, commandType);
         }
-        public DbDataReader? RunDataReader(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DbDataReader? RunDataReader(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
-                using (this.MyConnection)
-                {
-                    if (!OpenConnection(Schema))
-                        return null;
-                    
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!OpenConnection(this.connSchemaName)) return null;
+				
+                using var connection = this.MyConnection;
+				using var command = ExeCommand(queryString, parameters, commandType);
+                var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
-                    return reader;
-                }
+                return reader;
             }
             catch (DbException ex)
             {
@@ -270,29 +266,26 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public DataTable? RunDataTable(string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DataTable? RunDataTable(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
-            return RunDataTable(ConnSchemaName, QueryString, Parameters, CommandType);
+            return RunDataTable(this.connSchemaName, queryString, parameters, commandType);
         }
-        public DataTable? RunDataTable(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text)
+        public DataTable? RunDataTable(string schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
-                using (this.MyConnection)
-                {
-                    if (!OpenConnection(Schema))
-                        return null;
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!OpenConnection(this.connSchemaName)) return null;
+				using var connection = this.MyConnection;
 
-                    //using var dataReader = RunDataReader(Schema, QueryString, Parameters, CommandType);
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
-                    using var dataReader = command.ExecuteReader(CommandBehavior.CloseConnection);
+				using var command = ExeCommand(queryString, parameters, commandType);
+                using var dataReader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
-                    var dataTable = new DataTable();
-                    if(dataReader != null && !dataReader.IsClosed)
-                        dataTable.Load(dataReader);
+                var dataTable = new DataTable();
+                if (dataReader != null && !dataReader.IsClosed)
+                    dataTable.Load(dataReader);
 
-                    return dataTable;
-                }
+                return dataTable;
             }
             catch (DbException ex)
             {
@@ -302,23 +295,22 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region ASYNC Regular Operations (Adapter, Query etc.)
-        public async Task<int> RunNonQueryAsync(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public async Task<int> RunNonQueryAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
-            return await RunNonQueryAsync(ConnSchemaName, QueryString, Parameters, Transaction, CommandType);
+            return await RunNonQueryAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public async Task<int> RunNonQueryAsync(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public async Task<int> RunNonQueryAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!await OpenConnectionAsync(this.connSchemaName)) return -1;
                 using (this.MyConnection)
                 {
-                    if (!await OpenConnectionAsync(Schema))
-                        return -1;
-
-                    if (Transaction)
+                    if (transaction)
                     {
                         using var _transaction = this.MyConnection?.BeginTransaction();
-                        using var command = ExeCommand(QueryString, Parameters, CommandType);
+                        using var command = ExeCommand(queryString, parameters, commandType);
 
                         command.Transaction = _transaction;
                         int result = Convert.ToInt32(await command.ExecuteNonQueryAsync());
@@ -328,7 +320,7 @@ namespace OmerkckEF.Biscom.DBContext
                     }
                     else
                     {
-                        using var command = ExeCommand(QueryString, Parameters, CommandType);
+                        using var command = ExeCommand(queryString, parameters, commandType);
                         return Convert.ToInt32(await command.ExecuteNonQueryAsync());
                     }
                 }
@@ -339,22 +331,57 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public async Task<DataTable> RunSelectDataAsync(string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+		public async Task<object?> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		{
+			return await RunScalerAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
+		}
+		public async Task<object?> RunScalerAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		{
+            try
+            {
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!await OpenConnectionAsync(this.connSchemaName)) return null;
+                using (this.MyConnection)
+                {
+                    if (transaction)
+                    {
+                        using var _transaction = this.MyConnection?.BeginTransaction();
+                        using var command = ExeCommand(queryString, parameters, commandType);
+
+                        command.Transaction = _transaction;
+                        object? result = await command.ExecuteScalarAsync() ?? null;
+                        _transaction?.Commit();
+
+                        return result;
+                    }
+                    else
+                    {
+                        using var command = ExeCommand(queryString, parameters, commandType);
+                        return await command.ExecuteScalarAsync() ?? null;
+                    }
+                }
+            }
+            catch (DbException ex)
+            {
+                throw new Exception("Executing ExecuteScalar Error: " + ex.Message);
+            }
+		}
+
+		public async Task<DataTable> RunSelectDataAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
-            return await RunSelectDataAsync(ConnSchemaName,QueryString, Parameters, Transaction, CommandType);
+            return await RunSelectDataAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public async Task<DataTable> RunSelectDataAsync(string Schema, string QueryString, Dictionary<string, object>? Parameters = null, bool Transaction = false, CommandType CommandType = CommandType.Text)
+        public async Task<DataTable> RunSelectDataAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
+				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+				if (!await OpenConnectionAsync(this.connSchemaName)) return new DataTable();
                 using (this.MyConnection)
                 {
-                    if (!await OpenConnectionAsync(Schema))
-                        return new DataTable();
-
 
                     DataTable? dataTable = new();
-                    using var command = ExeCommand(QueryString, Parameters, CommandType);
+                    using var command = ExeCommand(queryString, parameters, commandType);
                     using (var reader = await command.ExecuteReaderAsync())
                     {
                         dataTable.Load(reader);
@@ -368,281 +395,7 @@ namespace OmerkckEF.Biscom.DBContext
                 throw new Exception("Executing RunSelectDataAsync Error: " + ex.Message);
             }
         }
-		#endregion
-
-		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
-
-		#region Read
-		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
-		{
-			try
-			{
-				using var connection = this.MyConnection;
-				if (!OpenConnection(this.connSchemaName))
-					return null;
-
-				QueryString ??= $"Select * from {this.connSchemaName}.{typeof(T).Name}";
-
-				using var command = ExeCommand(QueryString, Parameters, CommandType);
-				using var reader = command.ExecuteReader();
-				var entities = new List<T>();
-
-				while (reader.Read())
-				{
-					var entity = Activator.CreateInstance<T>();
-
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-						var propertyName = reader.GetName(i);
-						var propertyValue = reader.GetValue(i);
-						var propertyInfo = typeof(T).GetProperty(propertyName);
-                        if (propertyName != null && propertyValue != null && propertyInfo != null)
-                            Tools.ParsePrimitive(propertyInfo, entity, propertyValue);
-					}
-
-					entities.Add(entity);
-				}
-
-				return entities;
-			}
-			catch (DbException ex)
-			{
-				throw new Exception("Executing Get Mapped Class Error: " + ex.Message);
-			}
-		}
-		public List<T>? GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
-        {
-			this.QueryString = $"Select * from {this.connSchemaName}.{typeof(T).Name} {WhereCond}";
-
-			return GetMappedClass<T>(QueryString, Parameters, CommandType);
-        }
-        public List<T>? GetMappedClassBySchema<T>(string Schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
-        {
-			this.QueryString = $"Select * from {Schema}.{typeof(T).Name} {WhereCond}";
-            this.connSchemaName = Schema;
-            
-			return GetMappedClass<T>(QueryString, Parameters, CommandType);
-        }
         #endregion
-        #region Create
-        private int DoInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
-		{
-            try
-            {
-                if (entity == null) return -1;
-
-                using var connection = this.MyConnection;
-                if (!OpenConnection(this.connSchemaName))
-                    return -1;
-
-
-                var getColmAndParams = GetInsertColmAndParams<T>(entity);
-                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
-
-                var identityColumn = entity.GetKeyAttribute<T>();
-                var ReturnIdentity = this.DbServer?.DataBaseType switch
-                {
-                    DataBaseType.MySql => "; SELECT @@Identity;",
-                    DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
-                    DataBaseType.Oracle => $" RETURNING {identityColumn} INTO :new_id;",
-                    DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
-                    DataBaseType.None => "; SELECT @@Identity;",
-                    null => "; SELECT @@Identity;",
-                    _ => "; SELECT @@Identity;",
-                };
-                var sqlQuery = $"Insert Into {this.connSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}";
-
-
-                if (getById)
-                {
-                    object result = RunScaler(sqlQuery, parameters, transaction) ?? -1;
-                    if (result == null) return -1;
-
-                    return Convert.ToInt32(result);
-                }
-                else
-                {
-                    int affectedRows = RunNonQuery(sqlQuery, parameters, transaction);
-                    if (affectedRows <= 0) return -1;
-
-                    return affectedRows;
-                }
-            }
-            catch (Exception ex)
-            {
-                return -1;
-                throw new Exception("Executing Do Insert Error: " + ex.Message);
-            }
-        }
-        public int DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
-        {
-            return DoInsert<T>(entity, getById, transaction);
-		}
-        public bool DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
-        {
-            try
-            {
-                if (entityList is null || !entityList.Any()) return false;
-
-                using var connection = this.MyConnection;
-
-                if (!OpenConnection(this.connSchemaName))
-                    return false;
-
-                var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
-
-                var queryString = $"INSERT INTO {this.connSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
-
-                return RunNonQuery(queryString, getMultiInsertColmParams?.Item2, true) > 0;
-            }
-            catch (Exception ex)
-            {
-                return false;
-                throw new Exception("Executing DoMultiMapInsert Error: " + ex.Message);
-            }
-        }
-        #endregion
-        #region Update
-        private bool DoUpdate<T>(T entity, IEnumerable<string> fields, bool transaction = false) where T : class
-        {
-            try
-            {
-                if (entity == null || !fields.Any()) return false;
-
-                using var connection = this.MyConnection;
-                if (!OpenConnection(this.connSchemaName))
-                    return false;
-
-				var identityColumn = entity.GetKeyAttribute<T>();
-                
-                var _fields = string.Join(",", fields.Select(x => string.Format("{0}=@{0}", x.ToString())).ToList());
-
-
-				var getUpdateColmParams = GetUpdateColmAndParams<T>(entity, fields);
-
-                var sqlQuery = $"Update {this.connSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
-
-                var result = RunNonQuery(sqlQuery, getUpdateColmParams?.Item2, transaction);
-
-                return result > 0;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-        public bool DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
-        {
-            var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-                                         .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
-
-			var entity = GetMappedClassByWhere<T>(identityValue ?? "")?.FirstOrDefault();
-
-			if (entity == null) return false;
-
-			List<string> fields = GetChangedFields<T>(currentT, entity);
-
-			if (!fields.Any()) return false;
-
-			return DoUpdate<T>(currentT, fields, transaction);
-		}
-        #endregion
-        #region Delete
-        public bool DoMapDelete<T>(T entity, bool transaction = false) where T : class
-        {
-            try
-            {
-				if (entity == null) return false;
-
-				using var connection = this.MyConnection;
-				if (!OpenConnection(this.connSchemaName))
-					return false;
-
-				var identityColumn = entity.GetKeyAttribute<T>();
-				var identityValue = typeof(T).GetProperties()
-										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-										 .Select(s => s.GetValue(entity)).FirstOrDefault();
-
-				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
-
-				var result = RunNonQuery(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
-
-				return result > 0;
-			}
-            catch
-            {
-                return false;
-            }
-        }
-        public bool DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
-        {
-            try
-            {
-				if (entityList is null || !entityList.Any()) return false;
-
-				using var connection = this.MyConnection;
-				if (!OpenConnection(this.connSchemaName))
-					return false;
-
-				string identityColumn = entityList.FirstOrDefault()?.GetKeyAttribute<T>().ToString() ?? "";
-
-				string paramsColm = string.Join(", ", entityList.Select((x, index) => $"@{index}{identityColumn}"));
-
-                Dictionary<string, object> dictParams = entityList.SelectMany((item, index) => GetProperties(typeof(T), typeof(KeyAttribute), true)
-					.Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
-					.ToDictionary(x => x.Key, x => x.Value);
-
-				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
-
-				var result = RunNonQuery(sqlQuery, dictParams, transaction);
-
-				return result > 0;
-			}
-            catch
-            {
-                return false;
-            }
-        }
-        public bool DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return false;
-
-				using var connection = this.MyConnection;
-				if (!OpenConnection(this.connSchemaName))
-					return false;
-
-                var dataName = typeof(T).GetProperties()
-                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
-
-				if (dataName == null) return false;
-
-				var sqlQuery = $"Delete from {this.connSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
-
-                var result = RunNonQuery(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
-
-				return result > 0;
-			}
-            catch
-            {
-                return false;
-            }
-        }
-		#endregion
-
-
-
-
-
-		#endregion
-
-
-
-
-
-
 
 
 
