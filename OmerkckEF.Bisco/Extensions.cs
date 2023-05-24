@@ -42,7 +42,7 @@ namespace OmerkckEF.Biscom
 			else if (value is string strValue && int.TryParse(strValue, out int parsedInt))
 				return parsedInt;
 
-			return null;
+			return 0;
 		}
 		public static decimal? ToDecimal(this object convertit)
 		{

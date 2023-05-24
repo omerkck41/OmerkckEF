@@ -139,7 +139,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-		private void CloseConnection()
+		public void CloseConnection()
 		{
 			try
 			{

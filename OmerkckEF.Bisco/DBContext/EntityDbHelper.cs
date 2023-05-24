@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using MySqlX.XDevAPI;
+using MySqlX.XDevAPI.Common;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -17,13 +18,13 @@ namespace OmerkckEF.Biscom.DBContext
 		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read
-		public List<T>? GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>?> GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			try
 			{
 				QueryString ??= $"Select * from {ConnSchemaName}.{typeof(T).Name}";
 
-				if (!OpenConnection(ConnSchemaName))return null;
+				if (!OpenConnection(ConnSchemaName)) return new Result<List<T>?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
 				using var connection = MyConnection;
 				using var command = ExeCommand(QueryString, Parameters, CommandType);
@@ -46,20 +47,21 @@ namespace OmerkckEF.Biscom.DBContext
 					entities.Add(entity);
 				}
 
-				return entities;
+				return new Result<List<T>?> { IsSuccess = true, Data = entities };
 			}
 			catch (DbException ex)
 			{
-				throw new Exception("Executing Get Mapped Class Error: " + ex.Message);
+				CloseConnection();
+				return new Result<List<T>?> { IsSuccess = false, Message = "Executing Get Mapped Class Error: " + ex.Message };
 			}
 		}
-		public List<T>? GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>?> GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			this.QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {WhereCond}";
 
 			return GetMappedClass<T>(QueryString, Parameters, CommandType);
 		}
-		public List<T>? GetMappedClassBySchema<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>?> GetMappedClassBySchema<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			this.QueryString = $"Select * from {schema}.{typeof(T).Name} {WhereCond}";
 			ConnSchemaName = schema;
@@ -68,14 +70,14 @@ namespace OmerkckEF.Biscom.DBContext
 		}
 		#endregion
 		#region Create
-		private int DoInsert<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
+		private Result<int> DoInsert<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null) return -1;
+				if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return -1;
+				if (!OpenConnection(ConnSchemaName)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 				using var connection = this.MyConnection;
 
 				var getColmAndParams = GetInsertColmAndParams<T>(entity);
@@ -97,71 +99,76 @@ namespace OmerkckEF.Biscom.DBContext
 
 				if (getById)
 				{
-					object result = RunScaler(sqlQuery, parameters, transaction) ?? -1;
-					if (result == null) return -1;
+					var exeResult = RunScaler(sqlQuery, parameters, transaction);
+					if (exeResult.IsSuccess == false) return new Result<int> { IsSuccess = false, Message = "Database DoInset RunScaler error." };
 
-					return Convert.ToInt32(result);
+					return new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };
 				}
 				else
 				{
-					int affectedRows = RunNonQuery(sqlQuery, parameters, transaction);
-					if (affectedRows <= 0) return -1;
+					var affectedRows = RunNonQuery(sqlQuery, parameters, transaction);
+					if (affectedRows.IsSuccess == false) return new Result<int> { IsSuccess = false, Message = "Database DoInset RunNonQuery error." };
 
-					return affectedRows;
+					return new Result<int> { IsSuccess = true, Data = affectedRows.Data.MyToInt() ?? 0 };
 				}
 			}
 			catch (Exception ex)
 			{
-				return -1;
-				throw new Exception("Executing Do Insert Error: " + ex.Message);
+				CloseConnection();
+				return new Result<int> { IsSuccess = false, Message = "Executing DoInsert Class Error: " + ex.Message };
 			}
 		}
 
-		public int DoMapInsert<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
+		public Result<int> DoMapInsert<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			return DoInsert<T>(schema, entity, getById, transaction);
 		}
-		public int DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
+		public Result<int> DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			return DoInsert<T>(ConnSchemaName, entity, getById, transaction);
 		}
 
-		public bool DoMultiMapInsert<T>(string schema, IEnumerable<T> entityList) where T : class
+		public Result<bool> DoMultiMapInsert<T>(string schema, IEnumerable<T> entityList) where T : class
 		{
 			try
 			{
-				if (entityList is null || !entityList.Any()) return false;
+				if (entityList is null || !entityList.Any()) return new Result<bool> { IsSuccess = false, Message = "entityList Null or Count = 0" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
 
 				var queryString = $"INSERT INTO {ConnSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
 
-				return RunNonQuery(queryString, getMultiInsertColmParams?.Item2, true) > 0;
+				var exeResult = RunNonQuery(queryString, getMultiInsertColmParams?.Item2, true);
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMultiMapInsert RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
 			catch (Exception ex)
 			{
-				return false;
-				throw new Exception("Executing DoMultiMapInsert Error: " + ex.Message);
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMultiMapInsert Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
+		public Result<bool> DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
 		{
 			return DoMultiMapInsert<T>(ConnSchemaName, entityList);
 		}
 		#endregion
 		#region Update
-		private bool DoUpdate<T>(string schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
+		private Result<bool> DoUpdate<T>(string schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null || !fields.Any()) return false;
+				if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var identityColumn = entity.GetKeyAttribute<T>();
@@ -173,58 +180,61 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Update {ConnSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
 
-				var result = RunNonQuery(sqlQuery, getUpdateColmParams?.Item2, transaction);
+				var exeResult = RunNonQuery(sqlQuery, getUpdateColmParams?.Item2, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoUpdate RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoUpdate Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMapUpdate<T>(string schema, T currentT, bool transaction = false) where T : class
+		public Result<bool> DoMapUpdate<T>(string schema, T currentT, bool transaction = false) where T : class
 		{
 			var identityValue = typeof(T).GetProperties()
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 										 .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
-			var entity = GetMappedClassByWhere<T>(identityValue ?? "")?.FirstOrDefault();
+			var entity = GetMappedClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
 
-			if (entity == null) return false;
+			if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
 			List<string> fields = GetChangedFields<T>(currentT, entity);
 
-			if (!fields.Any()) return false;
+			if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
 			return DoUpdate<T>(schema, currentT, fields, transaction);
-
 		}
-		public bool DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
+		public Result<bool> DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
 		{
 			var identityValue = typeof(T).GetProperties()
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 										 .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
-			var entity = GetMappedClassByWhere<T>(identityValue ?? "")?.FirstOrDefault();
+			var entity = GetMappedClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
 
-			if (entity == null) return false;
+			if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
 			List<string> fields = GetChangedFields<T>(currentT, entity);
 
-			if (!fields.Any()) return false;
+			if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
 			return DoUpdate<T>(ConnSchemaName, currentT, fields, transaction);
 		}
 		#endregion
 		#region Delete
-		public bool DoMapDelete<T>(string schema, T entity, bool transaction = false) where T : class
+		public Result<bool> DoMapDelete<T>(string schema, T entity, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null) return false;
+				if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var identityColumn = entity.GetKeyAttribute<T>();
@@ -234,28 +244,32 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
 
-				var result = RunNonQuery(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
+				var exeResult = RunNonQuery(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDelete RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDelete Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMapDelete<T>(T entity, bool transaction = false) where T : class
+		public Result<bool> DoMapDelete<T>(T entity, bool transaction = false) where T : class
 		{
 			return DoMapDelete<T>(ConnSchemaName, entity, transaction);
 		}
 
-		public bool DoMapDeleteAll<T>(string schema, IEnumerable<T> entityList, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteAll<T>(string schema, IEnumerable<T> entityList, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entityList is null || !entityList.Any()) return false;
+				if (entityList is null || !entityList.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				string identityColumn = entityList.FirstOrDefault()?.GetKeyAttribute<T>().ToString() ?? "";
@@ -268,75 +282,86 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
 
-				var result = RunNonQuery(sqlQuery, dictParams, transaction);
+				var exeResult = RunNonQuery(sqlQuery, dictParams, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteAll RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAll Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
 		{
 			return DoMapDeleteAll(ConnSchemaName, entityList, transaction);
 		}
 
-		public bool DoMapDeleteWithField<T>(string schema, string fieldName, object fieldValue, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteWithField<T>(string schema, string fieldName, object fieldValue, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return false;
+				if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var dataName = typeof(T).GetProperties()
 										.FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
 
-				if (dataName == null) return false;
+				if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
 
-				var result = RunNonQuery(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
+				var exeResult = RunNonQuery(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteWithField RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteWithField Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
 		{
 			return DoMapDeleteWithField<T>(ConnSchemaName, fieldName, fieldValue, transaction);
 		}
 
-		public bool DoMapDeleteCompositeTable<T>(string schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteCompositeTable<T>(string schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (parameters == null || parameters.Count == 0) return false;
+				if (parameters == null || parameters.Count == 0) return new Result<bool> { IsSuccess = false, Message = "Parameters not found." };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!OpenConnection(ConnSchemaName)) return false;
+				if (!OpenConnection(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var WhereClause = parameters.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList();
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {string.Join(" and ", WhereClause)};";
 
-				var result = RunNonQuery(sqlQuery, parameters, transaction);
+				var exeResult = RunNonQuery(sqlQuery, parameters, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteWithField RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteCompositeTable Class Error: " + ex.Message };
 			}
 		}
-		public bool DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
 		{
 			return DoMapDeleteCompositeTable<T>(ConnSchemaName, parameters, transaction);
 		}
@@ -349,14 +374,14 @@ namespace OmerkckEF.Biscom.DBContext
 		#region ASYNC Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read
-		public async Task<List<T>?> GetMapClassAsync<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassAsync<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			try
 			{
 				QueryString ??= $"Select * from {ConnSchemaName}.{typeof(T).Name}";
 				
 				
-				if (!await OpenConnectionAsync(ConnSchemaName)) return null;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
 				using var connection = this.MyConnection;
 				using var command = ExeCommand(QueryString, Parameters, CommandType);
@@ -379,28 +404,32 @@ namespace OmerkckEF.Biscom.DBContext
 					entities.Add(entity);
 				}
 
-				return entities;
+				return new Result<List<T>> { IsSuccess = true, Data = entities };
 			}
-			catch (DbException ex)
+			catch (Exception ex)
 			{
-				throw new Exception("Executing Get Mapped Class Error: " + ex.Message);
+				CloseConnection();
+				return new Result<List<T>> { IsSuccess = false, Message = "Executing GetMapClassAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<T?> GetMapClassByIdAsync<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<T>> GetMapClassByIdAsync<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			var entity = Activator.CreateInstance<T>();
 			this.QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={Id}";
 
-			var result = await GetMapClassAsync<T>(QueryString, Parameters, CommandType);
-			return  result?.FirstOrDefault() ?? null;
+			var exeResult = await GetMapClassAsync<T>(QueryString, Parameters, CommandType);
+			if (exeResult.IsSuccess)
+				return new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() };
+
+			return new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found" };
 		}
-		public async Task<List<T>?> GetMapClassByWhereAsync<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			this.QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {WhereCond}";
 
 			return await GetMapClassAsync<T>(QueryString, Parameters, CommandType);
 		}
-		public async Task<List<T>?> GetMapClassBySchemaAsync<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			this.QueryString = $"Select * from {schema}.{typeof(T).Name} {WhereCond}";
 			ConnSchemaName = schema;
@@ -409,14 +438,15 @@ namespace OmerkckEF.Biscom.DBContext
 		}
 		#endregion
 		#region Create
-		private async Task<int> DoInsertAsync<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
+		private async Task<Result<int>> DoInsertAsync<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null) return -1;
+				if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName))	return -1;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var getColmAndParams = GetInsertColmAndParams<T>(entity);
@@ -438,71 +468,77 @@ namespace OmerkckEF.Biscom.DBContext
 
 				if (getById)
 				{
-					var result = await RunNonQueryAsync(sqlQuery, parameters, transaction).ConfigureAwait(false);
-					if (Convert.ToBoolean(result) == false) return -1;
+					var exeResult = await RunScalerAsync(sqlQuery, parameters, transaction).ConfigureAwait(false);
+					if (exeResult.IsSuccess == false) return new Result<int> { IsSuccess = false, Message = "Database DoInsertAsync RunScalerAsync error." };
 
-					return Convert.ToInt32(result);
+					return new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };
 				}
 				else
 				{
-					int affectedRows = await RunNonQueryAsync(sqlQuery, parameters, transaction);
-					if (affectedRows <= 0) return -1;
+					var affectedRows = await RunNonQueryAsync(sqlQuery, parameters, transaction);
+					if (affectedRows.IsSuccess == false) return new Result<int> { IsSuccess = false, Message = "Database DoInsertAsync RunNonQueryAsync error." };
 
-					return affectedRows;
+					return new Result<int> { IsSuccess = true, Data = affectedRows.Data.MyToInt() ?? 0 };
 				}
 			}
 			catch (Exception ex)
 			{
-				return -1;
-				throw new Exception("Executing Do Insert Error: " + ex.Message);
+				CloseConnection();
+				return new Result<int> { IsSuccess = false, Message = "Executing DoInsertAsync Class Error: " + ex.Message };
 			}
 		}
 
-		public async Task<int> DoMapInsertAsync<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
+		public async Task<Result<int>> DoMapInsertAsync<T>(string schema, T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			return await DoInsertAsync<T>(schema, entity, getById, transaction);
 		}
-		public async Task<int> DoMapInsertAsync<T>(T entity, bool getById = false, bool transaction = false) where T : class
+		public async Task<Result<int>> DoMapInsertAsync<T>(T entity, bool getById = false, bool transaction = false) where T : class
 		{
 			return await DoInsertAsync<T>(ConnSchemaName, entity, getById, transaction);
 		}
 
-		public async Task<bool> DoMultiMapInsertAsync<T>(string schema, IEnumerable<T> entityList) where T : class
+		public async Task<Result<bool>> DoMultiMapInsertAsync<T>(string schema, IEnumerable<T> entityList) where T : class
 		{
 			try
 			{
-				if (entityList is null || !entityList.Any()) return false;
+				if (entityList is null || !entityList.Any()) return new Result<bool> { IsSuccess = false, Message = "entityList Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
 
 				var queryString = $"INSERT INTO {ConnSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
 
-				return await RunNonQueryAsync(queryString, getMultiInsertColmParams?.Item2, true) > 0;
+				var exeResult = await RunNonQueryAsync(queryString, getMultiInsertColmParams?.Item2, true);
+
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMultiMapInsertAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
 			catch (Exception ex)
 			{
-				return false;
-				throw new Exception("Executing DoMultiMapInsert Error: " + ex.Message);
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMultiMapInsertAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMultiMapInsertAsync<T>(IEnumerable<T> entityList) where T : class
+		public async Task<Result<bool>> DoMultiMapInsertAsync<T>(IEnumerable<T> entityList) where T : class
 		{
 			return await DoMultiMapInsertAsync<T>(ConnSchemaName, entityList);
 		}
 		#endregion
 		#region Update
-		private async Task<bool> DoUpdateAsync<T>(string schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
+		private async Task<Result<bool>> DoUpdateAsync<T>(string schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null || !fields.Any()) return false;
+				if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var identityColumn = entity.GetKeyAttribute<T>();
@@ -514,33 +550,37 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Update {ConnSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
 
-				var result = await RunNonQueryAsync(sqlQuery, getUpdateColmParams?.Item2, transaction);
+				var exeResult = await RunNonQueryAsync(sqlQuery, getUpdateColmParams?.Item2, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoUpdateAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoUpdateAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMapUpdateAsync<T>(string schema, T currentT, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapUpdateAsync<T>(string schema, T currentT, bool transaction = false) where T : class
 		{
 			var identityValue = typeof(T).GetProperties()
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 										 .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
+
 			var entity = await GetMapClassByWhereAsync<T>(identityValue ?? "");
 
-			if (entity == null) return false;
+			if (entity.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
-			List<string> fields = GetChangedFields<T>(currentT, entity.FirstOrDefault()!);
+			List<string> fields = GetChangedFields<T>(currentT, entity.Data?.FirstOrDefault()!);
 
-			if (!fields.Any()) return false;
+			if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
 			return await DoUpdateAsync<T>(schema, currentT, fields, transaction);
 
 		}
-		public async Task<bool> DoMapUpdateAsync<T>(T currentT, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapUpdateAsync<T>(T currentT, bool transaction = false) where T : class
 		{
 			var identityValue = typeof(T).GetProperties()
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
@@ -548,24 +588,25 @@ namespace OmerkckEF.Biscom.DBContext
 
 			var entity = await GetMapClassByWhereAsync<T>(identityValue ?? "");
 
-			if (entity == null) return false;
+			if (entity.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
-			List<string> fields = GetChangedFields<T>(currentT, entity.FirstOrDefault()!);
+			List<string> fields = GetChangedFields<T>(currentT, entity.Data?.FirstOrDefault()!);
 
-			if (!fields.Any()) return false;
+			if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
 			return await DoUpdateAsync<T>(ConnSchemaName, currentT, fields, transaction);
 		}
 		#endregion
 		#region Delete
-		public async Task<bool> DoMapDeleteAsync<T>(string schema, T entity, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteAsync<T>(string schema, T entity, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entity == null) return false;
+				if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var identityColumn = entity.GetKeyAttribute<T>();
@@ -575,28 +616,32 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
 
-				var result = await RunNonQueryAsync(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
+				var exeResult = await RunNonQueryAsync(sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMapDeleteAsync<T>(T entity, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction = false) where T : class
 		{
 			return await DoMapDeleteAsync<T>(ConnSchemaName, entity, transaction);
 		}
 
-		public async Task<bool> DoMapDeleteAllAsync<T>(string schema, IEnumerable<T> entityList, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteAllAsync<T>(string schema, IEnumerable<T> entityList, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (entityList is null || !entityList.Any()) return false;
+				if (entityList is null || !entityList.Any()) return new Result<bool> { IsSuccess = false, Message = "EntityList Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				string identityColumn = entityList.FirstOrDefault()?.GetKeyAttribute<T>().ToString() ?? "";
@@ -609,75 +654,85 @@ namespace OmerkckEF.Biscom.DBContext
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
 
-				var result = await RunNonQueryAsync(sqlQuery, dictParams, transaction);
+				var exeResult = await RunNonQueryAsync(sqlQuery, dictParams, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteAllAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAllAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMapDeleteAllAsync<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteAllAsync<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
 		{
 			return await DoMapDeleteAllAsync(ConnSchemaName, entityList, transaction);
 		}
 
-		public async Task<bool> DoMapDeleteWithFieldAsync<T>(string schema, string fieldName, object fieldValue, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string schema, string fieldName, object fieldValue, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return false;
+				if (string.IsNullOrEmpty(fieldName) || fieldValue.In("", null)) return new Result<bool> { IsSuccess = false, Message = "fieldName or fieldValue Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
 				using var connection = this.MyConnection;
 
 				var dataName = typeof(T).GetProperties()
 										.FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
 
-				if (dataName == null) return false;
+				if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
 
-				var result = await RunNonQueryAsync(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
+				var exeResult = await RunNonQueryAsync(sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteWithFieldAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteWithFieldAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMapDeleteWithFieldAsync<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
 		{
 			return await DoMapDeleteWithFieldAsync<T>(ConnSchemaName, fieldName, fieldValue, transaction);
 		}
 
-		public async Task<bool> DoMapDeleteCompositeTableAsync<T>(string schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(string schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
 		{
 			try
 			{
-				if (parameters == null || parameters.Count == 0) return false;
+				if (parameters == null || parameters.Count == 0) return new Result<bool> { IsSuccess = false, Message = "Parameters Null" };
 
 				ConnSchemaName = string.IsNullOrEmpty(schema) ? ConnSchemaName : schema;
-				if (!await OpenConnectionAsync(ConnSchemaName)) return false;
+				if (!await OpenConnectionAsync(ConnSchemaName)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 				using var connection = this.MyConnection;
 
 				var WhereClause = parameters.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList();
 
 				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {string.Join(" and ", WhereClause)};";
 
-				var result = await RunNonQueryAsync(sqlQuery, parameters, transaction);
+				var exeResult = await RunNonQueryAsync(sqlQuery, parameters, transaction);
 
-				return result > 0;
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteCompositeTableAsync RunNonQueryAsync error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
 			}
-			catch
+			catch (Exception ex)
 			{
-				return false;
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteCompositeTableAsync Class Error: " + ex.Message };
 			}
 		}
-		public async Task<bool> DoMapDeleteCompositeTableAsync<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
 		{
 			return await DoMapDeleteCompositeTableAsync<T>(ConnSchemaName, parameters, transaction);
 		}

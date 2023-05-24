@@ -79,8 +79,7 @@ namespace TestLab
 			ll.Add(current);
 			ll.Add(current1);
 
-			
-			
+
 		}
 
 		async void gett()
