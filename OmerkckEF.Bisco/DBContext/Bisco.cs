@@ -1,6 +1,4 @@
-﻿using MongoDB.Driver;
-using MySqlX.XDevAPI.Common;
-using OmerkckEF.Biscom.Interfaces;
+﻿using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
 using System.Data;
 using System.Data.Common;
@@ -140,10 +138,25 @@ namespace OmerkckEF.Biscom.DBContext
                 return false;
             }
         }
-        #endregion
 
-        #region Regular Operations (Adapter, Query etc.)
-        public DbCommand ExeCommand(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+		private void CloseConnection()
+		{
+			try
+			{
+				if (this.MyConnection?.State != ConnectionState.Closed)
+				{
+					this.MyConnection?.Close();
+				}
+			}
+			catch (Exception ex)
+			{
+				Bisco_ErrorInfo = "While Close Connection, Error : " + ex.Message.ToString();
+			}
+		}
+		#endregion
+
+		#region Regular Operations (Adapter, Query etc.)
+		public DbCommand ExeCommand(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
@@ -182,31 +195,40 @@ namespace OmerkckEF.Biscom.DBContext
                 this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
                 if (!OpenConnection(this.connSchemaName)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-				int exeResult = 0;
-				using (MyConnection)
-                    
-					if (transaction)
+                int exeResult = 0;
+                using (MyConnection)
+
+                    if (transaction)
                     {
                         using var _transaction = this.MyConnection?.BeginTransaction();
-                        using var command = ExeCommand(queryString, parameters, commandType);
+                        try
+                        {
+							using var command = ExeCommand(queryString, parameters, commandType);
 
-                        command.Transaction = _transaction;
-					    exeResult = command.ExecuteNonQuery();
-                        _transaction?.Commit();
+							command.Transaction = _transaction;
+							exeResult = command.ExecuteNonQuery();
+							_transaction?.Commit();
+						}
+                        catch
+                        {
+                            _transaction?.Rollback();
+							return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
+						}                        
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
                         exeResult = command.ExecuteNonQuery();
-					}
+                    }
 
-				return new Result<int> { IsSuccess = true, Data = exeResult };
-			}
-            catch (DbException ex)
+                return new Result<int> { IsSuccess = exeResult > 0, Message = exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
+            }
+            catch (Exception ex)
             {
+				CloseConnection();
 				return new Result<int> { IsSuccess = false, Message = "Executing NonQuery Error: " + ex.Message };
             }
-        }
+		}
 
         public Result<object?> RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
@@ -220,25 +242,34 @@ namespace OmerkckEF.Biscom.DBContext
 				if (!OpenConnection(this.connSchemaName)) return new Result<object?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 				using var connection = this.MyConnection;
 
-                object? result;
+                object? exeResult = null;
 				if (transaction)
                 {
-                    using var _transaction = this.MyConnection?.BeginTransaction();
-                    using var command = ExeCommand(queryString, parameters, commandType);
+					using var _transaction = this.MyConnection?.BeginTransaction();
+					try
+                    {						
+						using var command = ExeCommand(queryString, parameters, commandType);
 
-                    command.Transaction = _transaction;
-                    result = command.ExecuteScalar() ?? null;
-                    _transaction?.Commit();                    
+						command.Transaction = _transaction;
+						exeResult = command.ExecuteScalar() ?? null;
+						_transaction?.Commit();
+					}
+                    catch
+                    {
+                        _transaction?.Rollback();
+						return new Result<object?> { IsSuccess = false, Message = "Error: Rollback finished." };
+					}                    
                 }
                 else
                 {
                     using var command = ExeCommand(queryString, parameters, commandType);
-					result = command?.ExecuteScalar() ?? null;
+					exeResult = command?.ExecuteScalar() ?? null;
                 }
-				return new Result<object?> { IsSuccess = true, Data = result };
+				return new Result<object?> { IsSuccess = true, Data = exeResult };
 			}
-            catch (DbException ex)
+            catch (Exception ex)
             {
+				CloseConnection();
 				return new Result<object?> { IsSuccess = false, Message = "Executing ExecuteScalar Error: " + ex.Message };
 			}
         }
@@ -260,8 +291,9 @@ namespace OmerkckEF.Biscom.DBContext
 
 				return new Result<DbDataReader?> { IsSuccess = true, Data = reader };
 			}
-            catch (DbException ex)
+            catch (Exception ex)
             {
+				CloseConnection();
 				return new Result<DbDataReader?> { IsSuccess = false, Message = "Executing RunDataReader Error: " + ex.Message };
 			}
         }
@@ -287,119 +319,136 @@ namespace OmerkckEF.Biscom.DBContext
 
 				return new Result<DataTable?> { IsSuccess = true, Data = dataTable };
 			}
-            catch (DbException ex)
+            catch (Exception ex)
             {
+				CloseConnection();
 				return new Result<DataTable?> { IsSuccess = false, Message = "Executing RunDataTable Error: " + ex.Message };
 			}
         }
         #endregion
 
         #region ASYNC Regular Operations (Adapter, Query etc.)
-        public async Task<int> RunNonQueryAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<int>> RunNonQueryAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             return await RunNonQueryAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public async Task<int> RunNonQueryAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<int>> RunNonQueryAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
 				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!await OpenConnectionAsync(this.connSchemaName)) return -1;
-                using (this.MyConnection)
+				if (!await OpenConnectionAsync(this.connSchemaName)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+                
+                int exeResult = 0;
+				using (this.MyConnection)
                 {
                     if (transaction)
                     {
                         using var _transaction = this.MyConnection?.BeginTransaction();
-                        using var command = ExeCommand(queryString, parameters, commandType);
+                        try
+                        {
+							using var command = ExeCommand(queryString, parameters, commandType);
 
-                        command.Transaction = _transaction;
-                        int result = Convert.ToInt32(await command.ExecuteNonQueryAsync());
-                        _transaction?.Commit();
-
-                        return result;
+							command.Transaction = _transaction;
+							exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
+							_transaction?.Commit();
+						}
+                        catch
+                        {
+                            _transaction?.RollbackAsync();
+							return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
+						}
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
-                        return Convert.ToInt32(await command.ExecuteNonQueryAsync());
+						exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
                     }
                 }
-            }
-            catch (DbException ex)
+				return new Result<int> { IsSuccess = exeResult > 0, Message= exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
+			}
+            catch (Exception ex)
             {
-                throw new Exception("Executing NonQuery Error: " + ex.Message);
-            }
+				CloseConnection();
+				return new Result<int> { IsSuccess = false, Message = "Executing NonQueryAsync Error: " + ex.Message };
+			}
         }
 
-		public async Task<object?> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		public async Task<Result<object?>> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
 		{
 			return await RunScalerAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
 		}
-		public async Task<object?> RunScalerAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		public async Task<Result<object?>> RunScalerAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
 		{
             try
             {
 				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!await OpenConnectionAsync(this.connSchemaName)) return null;
-                using (this.MyConnection)
+				if (!await OpenConnectionAsync(this.connSchemaName)) return new Result<object?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+                object? exeResult = null;
+				using (this.MyConnection)
                 {
                     if (transaction)
                     {
                         using var _transaction = this.MyConnection?.BeginTransaction();
-                        using var command = ExeCommand(queryString, parameters, commandType);
+                        try
+                        {
+							using var command = ExeCommand(queryString, parameters, commandType);
 
-                        command.Transaction = _transaction;
-                        object? result = await command.ExecuteScalarAsync() ?? null;
-                        _transaction?.Commit();
-
-                        return result;
+							command.Transaction = _transaction;
+							exeResult = await command.ExecuteScalarAsync() ?? null;
+							_transaction?.Commit();
+						}
+                        catch
+                        {
+                            _transaction?.RollbackAsync();
+							return new Result<object?> { IsSuccess = false, Message = "Error: Rollback finished." };
+						}
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
-                        return await command.ExecuteScalarAsync() ?? null;
+						exeResult = await command.ExecuteScalarAsync() ?? null;
                     }
                 }
-            }
-            catch (DbException ex)
+                return new Result<object?> { IsSuccess = true, Data = exeResult };
+			}
+            catch (Exception ex)
             {
-                throw new Exception("Executing ExecuteScalar Error: " + ex.Message);
-            }
-		}
+				CloseConnection();
+				return new Result<object?> { IsSuccess = false, Message = "Executing ExecuteScalarAsync Error: " + ex.Message };
+			}
+        }
 
-		public async Task<DataTable> RunSelectDataAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		public async Task<Result<DataTable>> RunSelectDataAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             return await RunSelectDataAsync(this.connSchemaName, queryString, parameters, transaction, commandType);
         }
-        public async Task<DataTable> RunSelectDataAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<DataTable>> RunSelectDataAsync(string schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
             try
             {
-				this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
-				if (!await OpenConnectionAsync(this.connSchemaName)) return new DataTable();
+                this.connSchemaName = string.IsNullOrEmpty(schema) ? this.connSchemaName : schema;
+                if (!await OpenConnectionAsync(this.connSchemaName)) return new Result<DataTable> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+                DataTable? dataTable = new();
                 using (this.MyConnection)
                 {
-
-                    DataTable? dataTable = new();
                     using var command = ExeCommand(queryString, parameters, commandType);
                     using (var reader = await command.ExecuteReaderAsync())
                     {
                         dataTable.Load(reader);
                     }
-
-                    return dataTable;
                 }
+                return new Result<DataTable> { IsSuccess = true, Data = dataTable };
             }
-            catch (DbException ex)
+            catch (Exception ex)
             {
-                throw new Exception("Executing RunSelectDataAsync Error: " + ex.Message);
+				CloseConnection();
+				return new Result<DataTable> { IsSuccess = false, Message = "Executing RunDataTableAsync Error: " + ex.Message };
             }
         }
         #endregion
-
-
-
-
 
 		#region IDisposable Members
 		public void Dispose()
