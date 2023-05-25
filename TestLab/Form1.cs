@@ -1,12 +1,15 @@
 using Amazon.Runtime.Internal.Transform;
 using Microsoft.VisualBasic.ApplicationServices;
+using MySql.Data.MySqlClient;
 using MySqlX.XDevAPI;
+using MySqlX.XDevAPI.Common;
 using OmerkckEF.Biscom;
 using OmerkckEF.Biscom.DBContext;
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -46,7 +49,7 @@ namespace TestLab
 			DbPassword = "1q2w3e4r",
 		};
 
-		readonly EntityDbHelper ee = new(new DbServer()
+		readonly EntityDbHelper edh = new(new DbServer()
 		{
 			//DBIp = "127.0.0.1",
 			//DBPort = 3306
@@ -80,14 +83,20 @@ namespace TestLab
 			ll.Add(current1);
 
 
+			var data1 = edh.GetMappedClassBySchema<sys_config>("sys");
+			var data = edh.GetMappedClass<sys_config>();
+			var data2 = edh.GetMappedClass<sys_config>();
+
+			dgrid.DataSource = data1.Data;
+
 		}
 
 		async void gett()
 		{
 			var id = "5".CreateParameters("Id");
 
-			var result = await ee.GetMapClassByIdAsync<sys_config>("@Id",id).ConfigureAwait(false);
-			MessageBox.Show(result?.value);
+			var result = await edh.GetMapClassByIdAsync<sys_config>("@Id",id).ConfigureAwait(false);
+			MessageBox.Show(result.Data?.value);
 		}
 
 	}

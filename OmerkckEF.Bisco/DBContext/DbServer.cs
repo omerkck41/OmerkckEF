@@ -7,8 +7,6 @@ namespace OmerkckEF.Biscom.DBContext
         [DataName]
         public int DbServerId { get; set; }
         [DataName]
-        public string DbName { get; set; } = string.Empty;
-        [DataName]
         public string? DbIp { get; set; }
         [DataName]
         public int DbPort { get; set; } = 3306;
@@ -35,6 +33,5 @@ namespace OmerkckEF.Biscom.DBContext
 
         public DataBaseType? DataBaseType => (DataBaseType)DbType;
 
-        public DbServer? dbServer { get; set; }
     }
 }
