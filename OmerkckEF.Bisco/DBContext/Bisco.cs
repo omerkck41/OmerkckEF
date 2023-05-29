@@ -1,8 +1,9 @@
 ﻿using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.Repositories;
+using OmerkckEF.Biscom.ToolKit;
 using System.Data;
 using System.Data.Common;
-using static OmerkckEF.Biscom.Enums;
+using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
 {

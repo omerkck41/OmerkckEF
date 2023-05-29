@@ -1,8 +1,9 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
-using static OmerkckEF.Biscom.Enums;
-using static OmerkckEF.Biscom.Tools;
+using OmerkckEF.Biscom.ToolKit;
+using static OmerkckEF.Biscom.ToolKit.Enums;
+using static OmerkckEF.Biscom.ToolKit.Tools;
 
 namespace OmerkckEF.Biscom.DBContext
 {
@@ -41,7 +42,7 @@ namespace OmerkckEF.Biscom.DBContext
 						var propertyValue = reader.GetValue(i);
 						var propertyInfo = typeof(T).GetProperty(propertyName);
 						if (propertyName != null && propertyValue != null && propertyInfo != null)
-							Tools.ParsePrimitive(propertyInfo, entity, propertyValue);
+							ParsePrimitive(propertyInfo, entity, propertyValue);
 					}
 
 					entities.Add(entity);
@@ -403,7 +404,7 @@ namespace OmerkckEF.Biscom.DBContext
 						var propertyValue = reader.GetValue(i);
 						var propertyInfo = typeof(T).GetProperty(propertyName);
 						if (propertyName != null && propertyValue != null && propertyInfo != null)
-							Tools.ParsePrimitive(propertyInfo, entity, propertyValue);
+							ParsePrimitive(propertyInfo, entity, propertyValue);
 					}
 
 					entities.Add(entity);

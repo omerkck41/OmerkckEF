@@ -1,4 +1,4 @@
-﻿namespace OmerkckEF.Biscom
+﻿namespace OmerkckEF.Biscom.ToolKit
 {
     public class Enums
     {

@@ -4,7 +4,7 @@ using System.Data;
 using System.Data.Common;
 using System.Reflection;
 
-namespace OmerkckEF.Biscom
+namespace OmerkckEF.Biscom.ToolKit
 {
 	public static class Tools
     {

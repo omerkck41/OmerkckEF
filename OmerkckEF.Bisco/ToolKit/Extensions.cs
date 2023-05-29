@@ -3,7 +3,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.Runtime.Versioning;
 
-namespace OmerkckEF.Biscom
+namespace OmerkckEF.Biscom.ToolKit
 {
 	public static class Extensions
 	{

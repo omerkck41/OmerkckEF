@@ -1,6 +1,6 @@
 ﻿using OmerkckEF.Biscom.DBContext.DBSchemas;
 using OmerkckEF.Biscom.Interfaces;
-using static OmerkckEF.Biscom.Enums;
+using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.Repositories
 {

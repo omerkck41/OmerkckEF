@@ -1,9 +1,9 @@
-﻿using static OmerkckEF.Biscom.Enums;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using static OmerkckEF.Biscom.ToolKit.Enums;
 
-namespace OmerkckEF.Biscom
+namespace OmerkckEF.Biscom.ToolKit
 {
-    public class Attributes { }
+	public class Attributes { }
 
     [AttributeUsage(AttributeTargets.Property)]
     public class ClassNameAttribute : Attribute

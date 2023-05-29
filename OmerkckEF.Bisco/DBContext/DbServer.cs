@@ -1,4 +1,5 @@
-﻿using static OmerkckEF.Biscom.Enums;
+﻿using OmerkckEF.Biscom.ToolKit;
+using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
 {

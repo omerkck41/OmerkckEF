@@ -1,4 +1,4 @@
-﻿using OmerkckEF.Biscom;
+﻿using OmerkckEF.Biscom.ToolKit;
 using System.ComponentModel.DataAnnotations;
 
 namespace TestLab

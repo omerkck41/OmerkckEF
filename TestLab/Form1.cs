@@ -1,20 +1,5 @@
-using Amazon.Runtime.Internal.Transform;
-using Microsoft.VisualBasic.ApplicationServices;
-using MySql.Data.MySqlClient;
-using MySqlX.XDevAPI;
-using MySqlX.XDevAPI.Common;
-using OmerkckEF.Biscom;
 using OmerkckEF.Biscom.DBContext;
-
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Windows.Forms;
-using static Mysqlx.Expect.Open.Types.Condition.Types;
+using OmerkckEF.Biscom.ToolKit;
 
 namespace TestLab
 {
