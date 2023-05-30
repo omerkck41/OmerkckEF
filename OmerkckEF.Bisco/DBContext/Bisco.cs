@@ -51,12 +51,12 @@ namespace OmerkckEF.Biscom.DBContext
 
         private string? connSchemaName;
 		public string? ConnSchemaName
-        {
-            get => connSchemaName;
+		{
+			get => connSchemaName ??= DbServer?.DbSchema;
 			set => connSchemaName = value;
-        }
+		}
 
-        private string con_ServerUser => DbServer?.DbUser ?? "root";
+		private string con_ServerUser => DbServer?.DbUser ?? "root";
         private string con_ServerPassword => DbServer?.DbPassword ?? "root123";
         private bool con_ServerPooling => DbServer?.DbPooling ?? true;
         private int con_MaxPoolSize => DbServer?.DbMaxpoolsize ?? 100;

@@ -1,7 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using MySqlX.XDevAPI;
+using OmerkckEF.Biscom.ToolKit;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
-using OmerkckEF.Biscom.ToolKit;
+using System.Linq.Expressions;
+using System.Transactions;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 
@@ -53,8 +56,14 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (DbException ex)
 			{
 				CloseConnection();
-				return new Result<List<T>> { IsSuccess = false, Message = "Executing Get Mapped Class Error: " + ex.Message };
+				return new Result<List<T>> { IsSuccess = false, Message = $"Executing Get Mapped Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
+		}
+		public Result<List<T>> GetMappedClass<T>(Expression<Func<T, bool>> filter) where T : class
+		{
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+
+			return GetMappedClass<T>(QueryString);
 		}
 		public Result<T> GetMappedClassById<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
@@ -126,7 +135,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<int> { IsSuccess = false, Message = "Executing DoInsert Class Error: " + ex.Message };
+				return new Result<int> { IsSuccess = false, Message = $"Executing DoInsert Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 
@@ -162,7 +171,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMultiMapInsert Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsert Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
@@ -199,7 +208,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoUpdate Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoUpdate Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMapUpdate<T>(string? schema, T currentT, bool transaction = false) where T : class
@@ -262,12 +271,39 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDelete Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDelete Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMapDelete<T>(T entity, bool transaction = false) where T : class
 		{
 			return DoMapDelete<T>(null, entity, transaction);
+		}
+
+		public Result<bool> DoMapDelete<T>(Expression<Func<T, bool>> filter) where T : class
+		{
+			try
+			{
+				if (filter == null) return new Result<bool> { IsSuccess = false, Message = "Filter not found." };
+
+				if (!OpenConnection()) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+				using var connection = MyConnection;
+
+				var WhereClause = filter.ConvertExpressionToQueryString();
+
+				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {WhereClause};";
+
+				var exeResult = RunNonQuery(sqlQuery);
+
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteFilter RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
+			}
+			catch (Exception ex)
+			{
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteFilter Class Error: {ex.GetType().FullName}: {ex.Message}" };
+			}
 		}
 
 		public Result<bool> DoMapDeleteAll<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class
@@ -299,7 +335,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAll Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAll Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
@@ -333,7 +369,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteWithField Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteWithField Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
@@ -364,7 +400,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteCompositeTable Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteCompositeTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
@@ -415,8 +451,14 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<List<T>> { IsSuccess = false, Message = "Executing GetMapClassAsync Class Error: " + ex.Message };
+				return new Result<List<T>> { IsSuccess = false, Message = $"Executing GetMapClassAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
+		}
+		public async Task<Result<List<T>>> GetMapClassAsync<T>(Expression<Func<T, bool>> filter) where T : class
+		{
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+
+			return await GetMapClassAsync<T>(QueryString);
 		}
 		public async Task<Result<T>> GetMapClassByIdAsync<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
@@ -489,7 +531,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<int> { IsSuccess = false, Message = "Executing DoInsertAsync Class Error: " + ex.Message };
+				return new Result<int> { IsSuccess = false, Message = $"Executing DoInsertAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 
@@ -525,7 +567,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMultiMapInsertAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsertAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMultiMapInsertAsync<T>(IEnumerable<T> entityList) where T : class
@@ -562,7 +604,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoUpdateAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoUpdateAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMapUpdateAsync<T>(string? schema, T currentT, bool transaction = false) where T : class
@@ -627,12 +669,39 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction = false) where T : class
 		{
 			return await DoMapDeleteAsync<T>(null, entity, transaction);
+		}
+
+		public async Task<Result<bool>> DoMapDeleteAsync<T>(Expression<Func<T, bool>> filter) where T : class
+		{
+			try
+			{
+				if (filter == null) return new Result<bool> { IsSuccess = false, Message = "Filter not found." };
+
+				if (!await OpenConnectionAsync()) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+				using var connection = MyConnection;
+
+				var WhereClause = filter.ConvertExpressionToQueryString();
+
+				var sqlQuery = $"Delete from {ConnSchemaName}.{typeof(T).Name} where {WhereClause};";
+
+				var exeResult = await RunNonQueryAsync(sqlQuery);
+
+				if (exeResult.IsSuccess == false) return new Result<bool> { IsSuccess = false, Message = "Database DoMapDeleteAsyncFilter RunNonQuery error." };
+
+				return new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
+			}
+			catch (Exception ex)
+			{
+				CloseConnection();
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAsyncFilter Class Error: {ex.GetType().FullName}: {ex.Message}" };
+			}
 		}
 
 		public async Task<Result<bool>> DoMapDeleteAllAsync<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class
@@ -664,7 +733,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteAllAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAllAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMapDeleteAllAsync<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
@@ -698,7 +767,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteWithFieldAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteWithFieldAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
@@ -728,7 +797,7 @@ namespace OmerkckEF.Biscom.DBContext
 			catch (Exception ex)
 			{
 				CloseConnection();
-				return new Result<bool> { IsSuccess = false, Message = "Executing DoMapDeleteCompositeTableAsync Class Error: " + ex.Message };
+				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteCompositeTableAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
 		public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class

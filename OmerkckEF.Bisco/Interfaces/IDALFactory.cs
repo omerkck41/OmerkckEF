@@ -1,9 +1,8 @@
-﻿using MongoDB.Driver.Core.Configuration;
-using System.Data;
+﻿using System.Data;
 
 namespace OmerkckEF.Biscom.Interfaces
 {
-    public interface IDALFactory
+	public interface IDALFactory
     {
         public string ConnectionString { get; set; }
 

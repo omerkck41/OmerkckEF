@@ -68,12 +68,14 @@ namespace TestLab
 			ll.Add(current1);
 
 
-			var data1 = edh.GetMappedClassBySchema<sys_config>("sys");
-			var data = edh.GetMappedClass<sys_config>();
-			var data2 = edh.GetMappedClass<sys_config>();
+			var data1 = edh.GetMapClassAsync<sys_config>(x=> x.sys_id == 6);
+			var data2 = edh.GetMappedClassById<sys_config>(6);
 
-			dgrid.DataSource = data1.Data;
 
+			dgrid.DataSource = data1.Result.Data;
+
+			var del = edh.DoMapDelete<sys_config>(x => x.variable == "omer" && x.value == "kck");
+			var delasync = edh.DoMapDeleteAsync<sys_config>(x => x.variable == "okan" && x.value == "krdmn");
 		}
 
 		async void gett()
