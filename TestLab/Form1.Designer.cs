@@ -29,7 +29,9 @@
 		private void InitializeComponent()
 		{
 			dgrid = new DataGridView();
+			dgrid1 = new DataGridView();
 			((System.ComponentModel.ISupportInitialize)dgrid).BeginInit();
+			((System.ComponentModel.ISupportInitialize)dgrid1).BeginInit();
 			SuspendLayout();
 			// 
 			// dgrid
@@ -38,23 +40,35 @@
 			dgrid.Location = new Point(12, 12);
 			dgrid.Name = "dgrid";
 			dgrid.RowTemplate.Height = 25;
-			dgrid.Size = new Size(240, 150);
+			dgrid.Size = new Size(624, 150);
 			dgrid.TabIndex = 0;
+			// 
+			// dgrid1
+			// 
+			dgrid1.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+			dgrid1.Location = new Point(12, 204);
+			dgrid1.Name = "dgrid1";
+			dgrid1.RowTemplate.Height = 25;
+			dgrid1.Size = new Size(624, 150);
+			dgrid1.TabIndex = 0;
 			// 
 			// Form1
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
 			ClientSize = new Size(800, 450);
+			Controls.Add(dgrid1);
 			Controls.Add(dgrid);
 			Name = "Form1";
 			Text = "Form1";
 			((System.ComponentModel.ISupportInitialize)dgrid).EndInit();
+			((System.ComponentModel.ISupportInitialize)dgrid1).EndInit();
 			ResumeLayout(false);
 		}
 
 		#endregion
 
 		private DataGridView dgrid;
+		private DataGridView dgrid1;
 	}
 }

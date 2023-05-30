@@ -68,21 +68,23 @@ namespace TestLab
 			ll.Add(current1);
 
 
-			var data1 = edh.GetMapClassAsync<sys_config>(x=> x.sys_id == 6);
-			var data2 = edh.GetMappedClassById<sys_config>(6);
+
+			var alan = new List<int> { 1,2,3,5 };
+			string[] ids = { "omer","okan" , "statement_performance_analyzer.limit" };
 
 
-			dgrid.DataSource = data1.Result.Data;
+			var data2 = edh.GetMapClassAsync<sys_config>(x => ids.Contains(x.variable));
 
-			var del = edh.DoMapDelete<sys_config>(x => x.variable == "omer" && x.value == "kck");
-			var delasync = edh.DoMapDeleteAsync<sys_config>(x => x.variable == "okan" && x.value == "krdmn");
+
+			dgrid1.DataSource = data2.Result.Data;
+
 		}
 
 		async void gett()
 		{
 			var id = "5".CreateParameters("Id");
 
-			var result = await edh.GetMapClassByIdAsync<sys_config>("@Id",id).ConfigureAwait(false);
+			var result = await edh.GetMapClassByIdAsync<sys_config>("@Id", id).ConfigureAwait(false);
 			MessageBox.Show(result.Data?.value);
 		}
 

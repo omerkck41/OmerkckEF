@@ -123,6 +123,17 @@ namespace OmerkckEF.Biscom.ToolKit
 						return $"'{constant.Value}'";
 					else if (typeof(bool).IsAssignableFrom(constant.Value.GetType()))
 						return constant.Value.ToString() ?? "";
+					else if (typeof(List<int>).IsAssignableFrom(constant.Value.GetType()))
+						return $"({string.Join(",", (List<int>)constant.Value)})";
+					else if (typeof(int[]).IsAssignableFrom(constant.Value.GetType()))
+						return $"({string.Join(",", (int[])constant.Value)})";
+					else if (typeof(string[]).IsAssignableFrom(constant.Value.GetType()))
+						return $"('{string.Join("','", (string[])constant.Value)}')";
+					else if (typeof(List<string>).IsAssignableFrom(constant.Value.GetType()))
+						return $"('{string.Join("','", (List<string>)constant.Value)}')";
+					else if (typeof(List<object>).IsAssignableFrom(constant.Value.GetType()))
+						return $"('{string.Join("','", (List<object>)constant.Value)}')";
+
 				}
 			}
 			else if (typeof(LambdaExpression).IsAssignableFrom(expression.GetType()))
@@ -139,7 +150,10 @@ namespace OmerkckEF.Biscom.ToolKit
 					case "IsNullOrEmpty":
 						return $"(!{ConvertExpressionToString(method.Arguments[0])})";
 					case "Contains":
-						return $"({ConvertExpressionToString(method.Object!)} LIKE '%{ConvertExpressionToString(method.Arguments[0])}%')";
+						if (method.Object == null)
+							return $"({ConvertExpressionToString(method.Arguments[1])} IN {ConvertExpressionToString(method.Arguments[0])})";
+						else
+							return $"({ConvertExpressionToString(method.Arguments[0])} IN {ConvertExpressionToString(method.Object!)})";
 					case "StartsWith":
 						return $"({ConvertExpressionToString(method.Object!)} LIKE '{ConvertExpressionToString(method.Arguments[0])}%')";
 					case "EndsWith":
@@ -160,6 +174,9 @@ namespace OmerkckEF.Biscom.ToolKit
 					case ExpressionType.Negate:
 						nodeType = "-";
 						break;
+					case ExpressionType.Convert:
+						//nodeType = $"Convert({unary.Operand.Type}, {unary.Operand})";
+						return ConvertExpressionToString(unary.Operand);
 					default:
 						nodeType = $"--Unary expression '{unary.NodeType}' not supported.--";
 						break;
