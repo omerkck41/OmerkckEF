@@ -1,10 +1,10 @@
-﻿using OmerkckEF.Biscom.Interfaces;
+﻿using Npgsql;
+using OmerkckEF.Biscom.Interfaces;
 using System.Data;
-using Npgsql;
 
 namespace OmerkckEF.Biscom.DBContext.DBSchemas
 {
-    public class PostgreSQLDAL:IDALFactory
+	public class PostgreSQLDAL:IDALFactory
     {
         private string? _ConnectionString = "Server=myServerAddress; Port=myPortNumber; Database=myDataBase; User Id=myUsername; Password=myPassword;";
         public string ConnectionString
@@ -26,6 +26,6 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
         public IDbCommand IDbCommand() => new NpgsqlCommand();
         public IDbDataParameter IDbParameter() => new NpgsqlParameter();
         public IDbDataAdapter IDbAdapter() => new NpgsqlDataAdapter();
-        public IDbTransaction IDbTransaction() => new NpgsqlConnection().BeginTransaction();
-    }
+        public IDbTransaction IDbTransaction() => new NpgsqlConnection().BeginTransaction();		
+	}
 }

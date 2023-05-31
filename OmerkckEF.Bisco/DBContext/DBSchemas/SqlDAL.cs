@@ -4,7 +4,7 @@ using System.Data.SqlClient;
 
 namespace OmerkckEF.Biscom.DBContext.DBSchemas
 {
-    public class SqlDAL : IDALFactory
+	public class SqlDAL : IDALFactory
     {
         private string? _ConnectionString = "Data Source=xxxx;Initial Catalog=xxxx;User ID=xxxx;Password=xxxx";
         public string ConnectionString
@@ -27,5 +27,5 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
         public IDbDataParameter IDbParameter() => new SqlParameter();
         public IDbDataAdapter IDbAdapter() => new SqlDataAdapter();
         public IDbTransaction IDbTransaction() => new SqlConnection().BeginTransaction();
-    }
+	}
 }

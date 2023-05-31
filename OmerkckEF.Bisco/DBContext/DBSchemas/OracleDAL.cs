@@ -1,10 +1,10 @@
 ﻿using OmerkckEF.Biscom.Interfaces;
-using System.Data;
 using Oracle.ManagedDataAccess.Client;
+using System.Data;
 
 namespace OmerkckEF.Biscom.DBContext.DBSchemas
 {
-    public class OracleDAL:IDALFactory
+	public class OracleDAL:IDALFactory
     {
         private string? _ConnectionString = "Data Source=myServerAddress:myPortNumber/myServiceName;User Id=myUsername;Password=myPassword;";
         public string ConnectionString
@@ -28,5 +28,5 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
         public IDbDataParameter IDbParameter() => new OracleParameter();
         public IDbDataAdapter IDbAdapter() => new OracleDataAdapter();
         public IDbTransaction IDbTransaction() => new OracleConnection().BeginTransaction();
-    }
+	}
 }

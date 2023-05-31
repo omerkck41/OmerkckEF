@@ -1,10 +1,8 @@
-﻿using MySqlX.XDevAPI;
-using OmerkckEF.Biscom.ToolKit;
+﻿using OmerkckEF.Biscom.ToolKit;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
-using System.Transactions;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 

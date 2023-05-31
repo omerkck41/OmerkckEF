@@ -1,5 +1,7 @@
 using OmerkckEF.Biscom.DBContext;
 using OmerkckEF.Biscom.ToolKit;
+using System.Data;
+using System.Data.Common;
 
 namespace TestLab
 {
@@ -69,8 +71,16 @@ namespace TestLab
 
 
 
-			var alan = new List<int> { 1,2,3,5 };
-			string[] ids = { "omer","okan" , "statement_performance_analyzer.limit" };
+			var dat = edh.GetMappedClass<sys_config>("select * from sys_config").Data ?? new();
+			MessageBox.Show(edh.bisco.MyConnection.State.ToString());
+			foreach (sys_config item in dat)
+			{
+				MessageBox.Show(item.variable.ToString());
+
+			}
+
+			var alan = new List<int> { 1, 2, 3, 5 };
+			string[] ids = { "omer", "okan", "statement_performance_analyzer.limit" };
 
 
 			var data2 = edh.GetMapClassAsync<sys_config>(x => ids.Contains(x.variable));
@@ -88,5 +98,15 @@ namespace TestLab
 			MessageBox.Show(result.Data?.value);
 		}
 
+		private void button1_Click(object sender, EventArgs e)
+		{
+			string[] ids = { "omer", "okan", "statement_performance_analyzer.limit" };
+
+
+			var data2 = edh.GetMapClassAsync<sys_config>(x => ids.Contains(x.variable));
+
+
+			dgrid1.DataSource = data2.Result.Data;
+		}
 	}
 }

@@ -30,6 +30,7 @@
 		{
 			dgrid = new DataGridView();
 			dgrid1 = new DataGridView();
+			button1 = new Button();
 			((System.ComponentModel.ISupportInitialize)dgrid).BeginInit();
 			((System.ComponentModel.ISupportInitialize)dgrid1).BeginInit();
 			SuspendLayout();
@@ -52,14 +53,26 @@
 			dgrid1.Size = new Size(624, 150);
 			dgrid1.TabIndex = 0;
 			// 
+			// button1
+			// 
+			button1.Location = new Point(561, 403);
+			button1.Name = "button1";
+			button1.Size = new Size(75, 23);
+			button1.TabIndex = 1;
+			button1.Text = "button1";
+			button1.UseVisualStyleBackColor = true;
+			button1.Click += button1_Click;
+			// 
 			// Form1
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
-			ClientSize = new Size(800, 450);
+			ClientSize = new Size(648, 450);
+			Controls.Add(button1);
 			Controls.Add(dgrid1);
 			Controls.Add(dgrid);
 			Name = "Form1";
+			StartPosition = FormStartPosition.CenterScreen;
 			Text = "Form1";
 			((System.ComponentModel.ISupportInitialize)dgrid).EndInit();
 			((System.ComponentModel.ISupportInitialize)dgrid1).EndInit();
@@ -70,5 +83,6 @@
 
 		private DataGridView dgrid;
 		private DataGridView dgrid1;
+		private Button button1;
 	}
 }

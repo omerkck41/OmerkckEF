@@ -1,10 +1,10 @@
-﻿using OmerkckEF.Biscom.Interfaces;
+﻿using MySql.Data.MySqlClient;
+using OmerkckEF.Biscom.Interfaces;
 using System.Data;
-using MySql.Data.MySqlClient;
 
 namespace OmerkckEF.Biscom.DBContext.DBSchemas
 {
-    public class MySqlDAL : IDALFactory
+	public class MySqlDAL : IDALFactory
     {
         private string? _ConnectionString = "server=127.0.0.1;user=root;database=gmt_db;port=3306;password=1q2w3e4r;";
         public string ConnectionString
@@ -27,5 +27,5 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
         public IDbDataParameter IDbParameter() => new MySqlParameter();
         public IDbDataAdapter IDbAdapter() => new MySqlDataAdapter();
         public IDbTransaction IDbTransaction() => new MySqlConnection().BeginTransaction();
-    }
+	}
 }
