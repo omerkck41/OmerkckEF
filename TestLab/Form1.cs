@@ -27,14 +27,6 @@ namespace TestLab
 					DbPassword = "1q2w3e4r",
 
 				});
-		readonly DbServer dbServer = new DbServer()
-		{
-			//DBIp = "127.0.0.1",
-			//DBPort = 3306
-			DbSchema = "sys",
-			DbUser = "root",
-			DbPassword = "1q2w3e4r",
-		};
 
 		readonly EntityDbHelper edh = new(new DbServer()
 		{
@@ -56,13 +48,13 @@ namespace TestLab
 
 			var current = new sys_config()
 			{
-				sys_id = 7,
 				value = "64",
 				variable = "statement_truncate_len",
+
 			};
 			var current1 = new sys_config()
 			{
-				sys_id = 8,
+				sys_id = 6,
 				value = "64",
 				variable = "statement_truncate_len",
 			};
@@ -70,23 +62,22 @@ namespace TestLab
 			ll.Add(current1);
 
 
+			var dat = edh.DoMapDelete<sys_config>(current1);
+			if (!dat.IsSuccess)
+				MessageBox.Show(dat.Message);
 
-			var dat = edh.GetMappedClass<sys_config>("select * from sys_config").Data ?? new();
-			MessageBox.Show(edh.bisco.MyConnection.State.ToString());
-			foreach (sys_config item in dat)
-			{
-				MessageBox.Show(item.variable.ToString());
 
-			}
+			MessageBox.Show(edh.Biscom.MyConnection.State.ToString());
+
 
 			var alan = new List<int> { 1, 2, 3, 5 };
 			string[] ids = { "omer", "okan", "statement_performance_analyzer.limit" };
 
 
-			var data2 = edh.GetMapClassAsync<sys_config>(x => ids.Contains(x.variable));
+			var data2 = edh.GetMappedClass<sys_config>();
+			MessageBox.Show(edh.Biscom.MyConnection.State.ToString());
 
-
-			dgrid1.DataSource = data2.Result.Data;
+			dgrid1.DataSource = data2.Data;
 
 		}
 

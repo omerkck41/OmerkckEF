@@ -335,19 +335,18 @@ namespace OmerkckEF.Biscom.ToolKit
                                             var UniqueMsg = f.GetCustomAttribute<UniqueAttribute>()?.ErrorMessage ?? null;
 
                                             dict.Add($"@{f.Name}", colmValue);
-                                            var ctrl = bisco.RunScaler(sqlQuery, dict);
-
+                                            var ctrl = bisco.RunScaler(sqlQuery, dict).Data;
+											
                                             if (!string.IsNullOrEmpty(UniqueMsg))
                                                 UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : null;
                                             else
                                                 UniqueError += ctrl != null ? "- " + f.Name + " : " + colmValue + "\n" : null;
-											
 										}
 									});
 				UniqueError += !string.IsNullOrEmpty(UniqueError) ? $"{UniqueError.Split('\n').Length-1} column(s) must be Unique. The entered values are available.!!!" : null;
 
 
-				return RequiredError += !string.IsNullOrEmpty(UniqueError) ? "\n<----------------->\n" + UniqueError : null;
+				return RequiredError += !string.IsNullOrEmpty(UniqueError) ? !string.IsNullOrEmpty(RequiredError) ? "\n<----------------->\n" + UniqueError : UniqueError : null;
             }
             catch
             {

@@ -11,11 +11,11 @@ namespace TestLab
 		public int sys_id { get; set; }
 		[DataName, Required(ErrorMessage ="Değer Boş geçme!"), Unique]
 		public string? variable { get; set; }
-		[DataName,Unique]
+		[DataName,Unique,Required]
 		public string? value { get; set; }
-		[DataName, Required(ErrorMessage = "Tarih Boş geçme!")]
+		[DataName]
 		public DateTime? set_time { get; set; }
-		[DataName, Required(ErrorMessage = "Kim Boş geçme!")]
+		[DataName]
 		public string? set_by { get; set; }
 
 		public sys_config? cfr { get; set; }
