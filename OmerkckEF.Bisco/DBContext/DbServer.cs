@@ -3,7 +3,7 @@ using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-    public class DbServer
+    public class DBServer
     {
         [DataName]
         public int DbServerId { get; set; }
@@ -32,7 +32,10 @@ namespace OmerkckEF.Biscom.DBContext
         [DataName]
         public bool DbActivity { get; set; }
 
-        public DataBaseType? DataBaseType => (DataBaseType)DbType;
+        public DataBaseType? DBModel => (DataBaseType)DbType;
 
+        public static DBServer? DBServerInfo { get; set; }
+
+        public DBServer() => DBServerInfo = this;
     }
 }

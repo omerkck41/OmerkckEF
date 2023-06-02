@@ -11,21 +11,20 @@ namespace OmerkckEF.Biscom.DBContext
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
-        public DbConnection? MyConnection { get; set; }
-        public DbServer? DbServer { get; set; }
-        public string? Bisco_ErrorInfo { get; set; }
-        #endregion
+        protected DbConnection? MyConnection { get; set; }
+		private DBServer? DBServerInfo { get; set; }
+		#endregion
 
-        public Bisco(DbServer databaseServer)
+		public Bisco(DBServer dbServerInfo)
         {
-			DbServer = databaseServer;
-            var SelectDBConn = DbServer?.DataBaseType ?? DataBaseType.MySql;
+			DBServerInfo = dbServerInfo;
+            var SelectDBConn = DBServerInfo?.DBModel ?? DataBaseType.MySql;
             DALFactory = DALFactoryBase.GetDataBase((DataBaseType)SelectDBConn);
 		}
 
-        #region ConnectionString
+		#region ConnectionString
 
-        public string ConnectionString
+		protected string ConnectionString
         {
             get
             {
@@ -46,27 +45,27 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        private string con_ServerIP => DbServer?.DbIp ?? "127.0.0.1";
-        private int con_ServerPort => DbServer?.DbPort ?? 3306;
+        private string con_ServerIP => DBServerInfo?.DbIp ?? "127.0.0.1";
+        private int con_ServerPort => DBServerInfo?.DbPort ?? 3306;
 
         private string? connSchemaName;
-		public string? ConnSchemaName
+		protected string? ConnSchemaName
 		{
-			get => connSchemaName ??= DbServer?.DbSchema;
+			get => connSchemaName ??= DBServerInfo?.DbSchema;
 			set => connSchemaName = value;
 		}
 
-		private string con_ServerUser => DbServer?.DbUser ?? "root";
-        private string con_ServerPassword => DbServer?.DbPassword ?? "root123";
-        private bool con_ServerPooling => DbServer?.DbPooling ?? true;
-        private int con_MaxPoolSize => DbServer?.DbMaxpoolsize ?? 100;
-        private int con_ConnectionLifeTime => DbServer?.DbConnLifetime ?? 300;
-        private int con_ConnectionTimeOut => DbServer?.DbConnTimeout ?? 500;
-        private bool con_AllowUserInput => DbServer?.DbAllowuserinput ?? true;
+		private string con_ServerUser => DBServerInfo?.DbUser ?? "root";
+        private string con_ServerPassword => DBServerInfo?.DbPassword ?? "root123";
+        private bool con_ServerPooling => DBServerInfo?.DbPooling ?? true;
+        private int con_MaxPoolSize => DBServerInfo?.DbMaxpoolsize ?? 100;
+        private int con_ConnectionLifeTime => DBServerInfo?.DbConnLifetime ?? 300;
+        private int con_ConnectionTimeOut => DBServerInfo?.DbConnTimeout ?? 500;
+        private bool con_AllowUserInput => DBServerInfo?.DbAllowuserinput ?? true;
 
-        #endregion
-        #region Connection
-        public bool OpenConnection(string? schemaName = "")
+		#endregion
+		#region Connection
+		protected bool OpenConnection(string? schemaName = "")
         {
             try
             {
@@ -76,10 +75,10 @@ namespace OmerkckEF.Biscom.DBContext
                     IsNewConnection = true;
                     ConnSchemaName = schemaName;
                 }
-                else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DbServer?.DbSchema)
+                else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
 				{
 					IsNewConnection = true;
-					ConnSchemaName = DbServer?.DbSchema ?? "";
+					ConnSchemaName = DBServerInfo?.DbSchema ?? "";
 				}				
 
 				if (MyConnection == null || IsNewConnection)
@@ -101,17 +100,17 @@ namespace OmerkckEF.Biscom.DBContext
                         MyConnection.Close();
                 }
 
-				Bisco_ErrorInfo = ex.ErrorCode switch
-                {
-                    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
-                    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
-                    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
-                    _ => "Connection Error : " + ex.Message,
-                };
+				//Bisco_ErrorInfo = ex.ErrorCode switch
+                //{
+                //    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
+                //    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
+                //    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
+                //    _ => "Connection Error : " + ex.Message,
+                //};
                 return false;
             }
         }
-		public async Task<bool> OpenConnectionAsync(string? schemaName = "")
+		protected async Task<bool> OpenConnectionAsync(string? schemaName = "")
         {
             try
             {
@@ -121,10 +120,10 @@ namespace OmerkckEF.Biscom.DBContext
 					IsNewConnection = true;
 					ConnSchemaName = schemaName;
 				}
-				else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DbServer?.DbSchema)
+				else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
 				{
 					IsNewConnection = true;
-					ConnSchemaName = DbServer?.DbSchema ?? "";
+					ConnSchemaName = DBServerInfo?.DbSchema ?? "";
 				}
 
 				if (MyConnection == null || IsNewConnection)
@@ -136,8 +135,6 @@ namespace OmerkckEF.Biscom.DBContext
                 if (MyConnection.State != ConnectionState.Open)
                     await MyConnection.OpenAsync();
 
-                Bisco_ErrorInfo = string.Empty;
-
                 return true;
             }
             catch (DbException ex)
@@ -148,18 +145,11 @@ namespace OmerkckEF.Biscom.DBContext
 						await MyConnection.CloseAsync();
 				}
 
-				Bisco_ErrorInfo = ex.ErrorCode switch
-                {
-                    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
-                    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
-                    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
-                    _ => "Connection Error : " + ex.Message,
-                };
                 return false;
             }
         }
 
-		public void CloseConnection()
+		protected void CloseConnection()
 		{
 			try
 			{
@@ -171,10 +161,10 @@ namespace OmerkckEF.Biscom.DBContext
 			}
 			catch (Exception ex)
 			{
-				Bisco_ErrorInfo = "While Close Connection, Error : " + ex.Message.ToString();
+				throw new Exception("While Close Connection, Error : " + ex.Message.ToString());
 			}
 		}
-		public void CloseConnectionAsync()
+		protected void CloseConnectionAsync()
 		{
             try
             {
@@ -187,7 +177,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch (Exception ex)
             {
-                Bisco_ErrorInfo = "While Close Connection, Error : " + ex.Message.ToString();
+                throw new Exception("While Close Connection, Error : " + ex.Message.ToString());
             }
 		}
 		#endregion

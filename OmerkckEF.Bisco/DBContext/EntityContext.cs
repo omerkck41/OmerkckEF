@@ -1,5 +1,4 @@
-﻿using MySqlX.XDevAPI;
-using OmerkckEF.Biscom.ToolKit;
+﻿using OmerkckEF.Biscom.ToolKit;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
@@ -9,19 +8,18 @@ using static OmerkckEF.Biscom.ToolKit.Tools;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-	public class EntityDbHelper : Bisco
+	public class EntityContext : Bisco
 	{
-        public Bisco Biscom { get; set; }
 		private string? QueryString { get; set; }
 
 
-		public EntityDbHelper(DbServer DbServer) : base(DbServer) => Biscom = this;
+		public EntityContext(DBServer dbServerInfo) : base(dbServerInfo) { }
 
 
 		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read		
-		public Result<List<T>> GetMappedClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, string? schema = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, string? schema = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			try
 			{
@@ -58,34 +56,34 @@ namespace OmerkckEF.Biscom.DBContext
 				return new Result<List<T>> { IsSuccess = false, Message = $"Executing Get Mapped Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
-		public Result<List<T>> GetMappedClass<T>(Expression<Func<T, bool>> filter) where T : class
+		public Result<List<T>> GetMapClass<T>(Expression<Func<T, bool>> filter) where T : class
 		{
 			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
 
-			return GetMappedClass<T>(QueryString);
+			return GetMapClass<T>(QueryString);
 		}
-		public Result<T> GetMappedClassById<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<T> GetMapClassById<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			var entity = Activator.CreateInstance<T>();
 			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={Id}";
 
-			var exeResult = GetMappedClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			var exeResult = GetMapClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
 
 			return exeResult.IsSuccess
 				? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
 				: new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found" };
 		}
-		public Result<List<T>> GetMappedClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {WhereCond}";
 
-			return GetMappedClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			return GetMapClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
 		}
-		public Result<List<T>> GetMappedClassBySchema<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClassBySchema<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
 		{
 			QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? ConnSchemaName : schema)}.{typeof(T).Name} {WhereCond}";
 
-			return GetMappedClass<T>(QueryString, Parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), CommandType);
+			return GetMapClass<T>(QueryString, Parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), CommandType);
 		}
 		#endregion
 		#region Create
@@ -95,14 +93,14 @@ namespace OmerkckEF.Biscom.DBContext
 			{
 				if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
-				string check = CheckAttributeColumn<T>(entity, Biscom);
+				string check = CheckAttributeColumn<T>(entity, this);
 				if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
 				var getColmAndParams = GetInsertColmAndParams<T>(entity);
 				Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
 
 				var identityColumn = entity.GetKeyAttribute<T>();
-				var ReturnIdentity = DbServer?.DataBaseType switch
+				var ReturnIdentity = DBServer.DBServerInfo?.DBModel switch
 				{
 					DataBaseType.MySql => "; SELECT @@Identity;",
 					DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
@@ -146,7 +144,7 @@ namespace OmerkckEF.Biscom.DBContext
 			return DoInsert<T>(ConnSchemaName, entity, getById, transaction);
 		}
 
-		public Result<bool> DoMultiMapInsert<T>(string? schema, IEnumerable<T> entityList) where T : class
+		public Result<bool> DoMapMultiInsert<T>(string? schema, IEnumerable<T> entityList) where T : class
 		{
 			try
 			{
@@ -154,7 +152,7 @@ namespace OmerkckEF.Biscom.DBContext
 
 				foreach (T entity in entityList)
 				{
-					string check = CheckAttributeColumn<T>(entity, Biscom);
+					string check = CheckAttributeColumn<T>(entity, this);
 					if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = "There are problems in the list.\n\n" + check };
 				}
 
@@ -175,9 +173,9 @@ namespace OmerkckEF.Biscom.DBContext
 				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsert Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
-		public Result<bool> DoMultiMapInsert<T>(IEnumerable<T> entityList) where T : class
+		public Result<bool> DoMapMultiInsert<T>(IEnumerable<T> entityList) where T : class
 		{
-			return DoMultiMapInsert<T>(ConnSchemaName, entityList);
+			return DoMapMultiInsert<T>(ConnSchemaName, entityList);
 		}
 		#endregion
 		#region Update
@@ -187,7 +185,7 @@ namespace OmerkckEF.Biscom.DBContext
 			{
 				if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
-				string check = CheckAttributeColumn<T>(entity, Biscom);
+				string check = CheckAttributeColumn<T>(entity, this);
 				if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = check };
 
 
@@ -215,7 +213,7 @@ namespace OmerkckEF.Biscom.DBContext
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 										 .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
-			var entity = GetMappedClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
+			var entity = GetMapClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
 
 			if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
@@ -231,7 +229,7 @@ namespace OmerkckEF.Biscom.DBContext
 										 .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 										 .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
-			var entity = GetMappedClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
+			var entity = GetMapClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
 
 			if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
@@ -473,14 +471,14 @@ namespace OmerkckEF.Biscom.DBContext
 			{
 				if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
-				string check = CheckAttributeColumn<T>(entity, Biscom);
+				string check = CheckAttributeColumn<T>(entity, this);
 				if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
 				var getColmAndParams = GetInsertColmAndParams<T>(entity);
 				Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
 
 				var identityColumn = entity.GetKeyAttribute<T>();
-				var ReturnIdentity = DbServer?.DataBaseType switch
+				var ReturnIdentity = DBServer.DBServerInfo?.DBModel switch
 				{
 					DataBaseType.MySql => "; SELECT @@Identity;",
 					DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
@@ -524,7 +522,7 @@ namespace OmerkckEF.Biscom.DBContext
 			return await DoInsertAsync<T>(ConnSchemaName, entity, getById, transaction);
 		}
 
-		public async Task<Result<bool>> DoMultiMapInsertAsync<T>(string? schema, IEnumerable<T> entityList) where T : class
+		public async Task<Result<bool>> DoMapMultiInsertAsync<T>(string? schema, IEnumerable<T> entityList) where T : class
 		{
 			try
 			{
@@ -532,7 +530,7 @@ namespace OmerkckEF.Biscom.DBContext
 
 				foreach (T entity in entityList)
 				{
-					string check = CheckAttributeColumn<T>(entity, Biscom);
+					string check = CheckAttributeColumn<T>(entity, this);
 					if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = "There are problems in the list.\n\n" + check };
 				}
 
@@ -552,9 +550,9 @@ namespace OmerkckEF.Biscom.DBContext
 				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsertAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
-		public async Task<Result<bool>> DoMultiMapInsertAsync<T>(IEnumerable<T> entityList) where T : class
+		public async Task<Result<bool>> DoMapMultiInsertAsync<T>(IEnumerable<T> entityList) where T : class
 		{
-			return await DoMultiMapInsertAsync<T>(ConnSchemaName, entityList);
+			return await DoMapMultiInsertAsync<T>(ConnSchemaName, entityList);
 		}
 		#endregion
 		#region Update
@@ -564,7 +562,7 @@ namespace OmerkckEF.Biscom.DBContext
 			{
 				if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
-				string check = CheckAttributeColumn<T>(entity, Biscom);
+				string check = CheckAttributeColumn<T>(entity, this);
 				if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = check };
 
 				var identityColumn = entity.GetKeyAttribute<T>();
