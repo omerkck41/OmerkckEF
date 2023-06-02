@@ -14,7 +14,8 @@ namespace OmerkckEF.Biscom.Repositories
 			get
 			{
 				//_current ??= new OT();
-
+				if (_current != null) return _current as OT;
+					
 				ORMBase<T, OT>._current = ORMBase<T, OT>._current ?? Activator.CreateInstance<OT>();
 				return ORMBase<T, OT>._current;
 			}
