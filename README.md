@@ -36,6 +36,7 @@ OmerkckEF is an ADO.NET ORM (Object-Relational Mapping) tool designed to support
 * `Tools.cs`: Contains general-purpose helper functions.
 
 ### Usage
-OmerkckEF is designed to support applications running on a wide variety of database systems. Each DAL class under DBSchemas can perform operations specific to the relevant database system.
+OmerkckEF is designed to support applications running on a wide variety of database systems.
+Each DAL class under DBSchemas can perform operations specific to the relevant database system.
 To use this structure, first, you need to edit your database connection information in the `Bisco.cs` and `DBServer.cs` files.
 Then, you can perform your database operations using the DAL class appropriate to the relevant database.
