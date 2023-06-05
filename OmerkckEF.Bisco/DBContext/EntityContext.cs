@@ -19,16 +19,16 @@ namespace OmerkckEF.Biscom.DBContext
 		#region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read		
-		public Result<List<T>> GetMapClass<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, string? schema = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClass<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class
 		{
 			try
 			{
 				if (!OpenConnection(schema)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-				QueryString ??= $"Select * from {schema ??= ConnSchemaName}.{typeof(T).Name}";
+				queryString ??= $"Select * from {schema ??= ConnSchemaName}.{typeof(T).Name}";
 
 				using var connection = MyConnection;
-				using var command = ExeCommand(QueryString, Parameters, CommandType);
+				using var command = ExeCommand(queryString, parameters, commandType);
 				using var reader = command.ExecuteReader();
 				var entities = new List<T>();
 
@@ -62,28 +62,28 @@ namespace OmerkckEF.Biscom.DBContext
 
 			return GetMapClass<T>(QueryString);
 		}
-		public Result<T> GetMapClassById<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<T> GetMapClassById<T>(object id, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
 			var entity = Activator.CreateInstance<T>();
-			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={Id}";
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
 
-			var exeResult = GetMapClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			var exeResult = GetMapClass<T>(QueryString, parameters, ConnSchemaName, commandType);
 
 			return exeResult.IsSuccess
 				? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
 				: new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found" };
 		}
-		public Result<List<T>> GetMapClassByWhere<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClassByWhere<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
-			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {WhereCond}";
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {whereCond}";
 
-			return GetMapClass<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			return GetMapClass<T>(QueryString, parameters, ConnSchemaName, commandType);
 		}
-		public Result<List<T>> GetMapClassBySchema<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public Result<List<T>> GetMapClassBySchema<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
-			QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? ConnSchemaName : schema)}.{typeof(T).Name} {WhereCond}";
+			QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? ConnSchemaName : schema)}.{typeof(T).Name} {whereCond}";
 
-			return GetMapClass<T>(QueryString, Parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), CommandType);
+			return GetMapClass<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), commandType);
 		}
 		#endregion
 		#region Create
@@ -384,7 +384,7 @@ namespace OmerkckEF.Biscom.DBContext
 				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteCompositeTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
-		public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
+		public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction) where T : class
 		{
 			return DoMapDeleteCompositeTable<T>(ConnSchemaName, parameters, transaction);
 		}
@@ -397,16 +397,16 @@ namespace OmerkckEF.Biscom.DBContext
 		#region ASYNC Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
 		#region Read
-		public async Task<Result<List<T>>> GetMapClassAsync<T>(string? QueryString = null, Dictionary<string, object>? Parameters = null, string? schema = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassAsync<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class
 		{
 			try
 			{				
 				if (!await OpenConnectionAsync(schema)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-				QueryString ??= $"Select * from {schema ??= ConnSchemaName}.{typeof(T).Name}";				
+				queryString ??= $"Select * from {schema ??= ConnSchemaName}.{typeof(T).Name}";				
 
 				using var connection = MyConnection;
-				using var command = ExeCommand(QueryString, Parameters, CommandType);
+				using var command = ExeCommand(queryString, parameters, commandType);
 				using var reader = await command.ExecuteReaderAsync();
 				var entities = new List<T>();
 
@@ -440,28 +440,28 @@ namespace OmerkckEF.Biscom.DBContext
 
 			return await GetMapClassAsync<T>(QueryString);
 		}
-		public async Task<Result<T>> GetMapClassByIdAsync<T>(object Id, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<T>> GetMapClassByIdAsync<T>(object id, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
 			var entity = Activator.CreateInstance<T>();
-			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={Id}";
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
 
-			var exeResult = await GetMapClassAsync<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			var exeResult = await GetMapClassAsync<T>(QueryString, parameters, ConnSchemaName, commandType);
 
 			return exeResult.IsSuccess
 				? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
 				: new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found" };
 		}
-		public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string WhereCond, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
-			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {WhereCond}";
+			QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} {whereCond}";
 
-			return await GetMapClassAsync<T>(QueryString, Parameters, ConnSchemaName, CommandType);
+			return await GetMapClassAsync<T>(QueryString, parameters, ConnSchemaName, commandType);
 		}
-		public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string schema, string? WhereCond = null, Dictionary<string, object>? Parameters = null, CommandType CommandType = CommandType.Text) where T : class
+		public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
 		{
-			QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? ConnSchemaName : schema)}.{typeof(T).Name} {WhereCond}";
+			QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? ConnSchemaName : schema)}.{typeof(T).Name} {whereCond}";
 
-			return await GetMapClassAsync<T>(QueryString, Parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), CommandType);
+			return await GetMapClassAsync<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), commandType);
 		}
 		#endregion
 		#region Create
@@ -647,7 +647,7 @@ namespace OmerkckEF.Biscom.DBContext
 				return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
 			}
 		}
-		public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction = false) where T : class
+		public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction) where T : class
 		{
 			return await DoMapDeleteAsync<T>(ConnSchemaName, entity, transaction);
 		}

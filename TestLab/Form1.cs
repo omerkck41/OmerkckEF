@@ -16,27 +16,28 @@ namespace TestLab
 
 			var current = new sys_config()
 			{
-				value = "64",
-				variable = "statement_truncate_len",
-
+				sys_id=39348,
+				value = "645",
+				variable = "statement_truncate_len-2",
 			};
 			var current1 = new sys_config()
 			{
-				sys_id = 6,
-				value = "64",
-				variable = "statement_truncate_len",
+				sys_id = 39349,
+				value = "kck",
+				variable = "omer-11",
 			};
 			ll.Add(current);
 			ll.Add(current1);
 
-			dgrid1.DataSource = Function.EntityContext.GetMapClass<sys_config>().Data;
-			
-			
-			dgrid.DataSource = sys_configORM.Current.GetAll().Data;
+			//dgrid1.DataSource = Function.EntityContext.GetMapClass<sys_config>().Data;
 
-			
+
+						
+
+
 
 		}
+
 
 		private void button1_Click(object sender, EventArgs e)
 		{

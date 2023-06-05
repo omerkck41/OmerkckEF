@@ -92,7 +92,7 @@ namespace OmerkckEF.Biscom.DBContext
 
 				return true;
             }
-            catch (DbException ex)
+            catch// (DbException ex)
             {
                 if (MyConnection != null)
                 {
@@ -137,7 +137,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 return true;
             }
-            catch (DbException ex)
+            catch// (DbException ex)
             {
 				if (MyConnection != null)
 				{
@@ -419,11 +419,11 @@ namespace OmerkckEF.Biscom.DBContext
 			}
         }
 
-		public async Task<Result<DataTable>> RunDataTableAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+		public async Task<Result<DataTable>> RunDataTableAsync(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
-            return await RunDataTableAsync(null, queryString, parameters, transaction, commandType);
+            return await RunDataTableAsync(null, queryString, parameters, commandType);
         }
-        public async Task<Result<DataTable>> RunDataTableAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<DataTable>> RunDataTableAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
