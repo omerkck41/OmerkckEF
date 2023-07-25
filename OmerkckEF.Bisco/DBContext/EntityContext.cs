@@ -117,14 +117,14 @@ namespace OmerkckEF.Biscom.DBContext
 				{
 					var exeResult = RunScaler(schema, sqlQuery, parameters, transaction);
 					return !exeResult.IsSuccess
-						   ? new Result<int> { IsSuccess = false, Message = "Database DoInset RunScaler error." }
+						   ? new Result<int> { IsSuccess = false, Message = "Database DoInsert RunScaler error." }
 						   : new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };
 				}
 				else
 				{
 					var affectedRows = RunNonQuery(schema, sqlQuery, parameters, transaction);
 					return !affectedRows.IsSuccess
-						   ? new Result<int> { IsSuccess = false, Message = "Database DoInset RunNonQuery error." }
+						   ? new Result<int> { IsSuccess = false, Message = "Database DoInsert RunNonQuery error." }
 						   : new Result<int> { IsSuccess = true, Data = affectedRows.Data.MyToInt() ?? 0 };
 				}
 			}
