@@ -3,6 +3,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Security;
 
 namespace OmerkckEF.Biscom.ToolKit
 {
@@ -266,22 +268,32 @@ namespace OmerkckEF.Biscom.ToolKit
 												  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
 												  .ToList();
 
-				foreach (var property in propertiesWithAttribute)
+				foreach (var prop in propertiesWithAttribute)
 				{
-					object oldValue = property.GetValue(oldT) ?? string.Empty;
-					object newValue = property.GetValue(newT) ?? string.Empty;
+					if (prop.PropertyType.Namespace == "System.Collections.Generic") continue;
 
-					if (property.PropertyType == typeof(byte[]))
+					object oldValue = prop.GetValue(oldT) ?? string.Empty;
+					object newValue = prop.GetValue(newT) ?? string.Empty;
+
+					if (prop.PropertyType == typeof(byte[]))
 					{
 						byte[] oldBytes = oldValue as byte[] ?? new byte[] { 0 };
 						byte[] newBytes = newValue as byte[] ?? new byte[] { 0 };
 
 						if (!oldBytes.SequenceEqual(newBytes))
-							fields.Add(property.Name);
+							fields.Add(prop.Name);
 
 					}
+					else if (prop.PropertyType == typeof(SecureString))
+					{ 
+						var oldString = ((SecureString)oldValue).ConvertToUnSecurestring();
+						var newString = ((SecureString)newValue).ConvertToUnSecurestring();
+
+						if(!oldString.Equals(newString))
+							fields.Add(prop.Name);
+					}
 					else if (!newValue.Equals(oldValue))
-						fields.Add(property.Name);
+						fields.Add(prop.Name);
 				}
 
 				return fields;
@@ -291,8 +303,23 @@ namespace OmerkckEF.Biscom.ToolKit
                 return new();
             }
 		}
+        public static SecureString ConvertToSecureString(this string value)
+        {
+            var secureString = new SecureString();
 
-		public static string CheckAttributeColumn<T>(T Entity, Bisco bisco) where T : class
+            if (value.Length > 0)
+                value.ToCharArray().ToList().ForEach(x => secureString.AppendChar(x));
+
+            secureString.MakeReadOnly();
+            return secureString;
+        }
+        public static string ConvertToUnSecurestring(this SecureString value)
+        {
+            var result = Marshal.SecureStringToBSTR(value);
+            return Marshal.PtrToStringAuto(result) ?? "";
+        }
+
+        public static string CheckAttributeColumn<T>(T Entity, Bisco bisco) where T : class
         {
             try
             {
