@@ -49,10 +49,16 @@ namespace OmerkckEF.Biscom.DBContext
         private int con_ServerPort => DBServerInfo?.DbPort ?? 3306;
 
         private string? connSchemaName;
-		protected string? ConnSchemaName
+		public string? ConnSchemaName
 		{
-			get => connSchemaName ??= DBServerInfo?.DbSchema;
-			set => connSchemaName = value;
+            get
+            {
+                if (connSchemaName == null || connSchemaName != DBServerInfo?.DbSchema)
+                    connSchemaName = DBServerInfo?.DbSchema;
+
+                return connSchemaName;
+            }
+            set => connSchemaName = value;
 		}
 
 		private string con_ServerUser => DBServerInfo?.DbUser ?? "root";
@@ -453,7 +459,7 @@ namespace OmerkckEF.Biscom.DBContext
         }
 
         private bool disposed = false;
-        private void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (!disposed)
             {
@@ -461,6 +467,9 @@ namespace OmerkckEF.Biscom.DBContext
                 {
                     // Managed resources are released here.
                     MyConnection?.Dispose();
+                    MyConnection?.Close();
+                    MyConnection = null;
+                    DBServerInfo = DBServer.DBServerInfo;
                 }
 
                 // Unmanaged resources are released here.
