@@ -7,24 +7,24 @@ using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-	public class Bisco : IDisposable
+    public class Bisco : IDisposable
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
         protected DbConnection? MyConnection { get; set; }
-		private DBServer? DBServerInfo { get; set; }
-		#endregion
+        private DBServer? DBServerInfo { get; set; }
+        #endregion
 
-		public Bisco(DBServer dbServerInfo)
+        public Bisco(DBServer dbServerInfo)
         {
-			DBServerInfo = dbServerInfo;
+            DBServerInfo = dbServerInfo;
             var SelectDBConn = DBServerInfo?.DBModel ?? DataBaseType.MySql;
             DALFactory = DALFactoryBase.GetDataBase((DataBaseType)SelectDBConn);
-		}
+        }
 
-		#region ConnectionString
+        #region ConnectionString
 
-		protected string ConnectionString
+        protected string ConnectionString
         {
             get
             {
@@ -39,7 +39,7 @@ namespace OmerkckEF.Biscom.DBContext
                 DBString += " connection lifetime = " + con_ConnectionLifeTime + "; ";
                 DBString += " connection timeout = " + con_ConnectionTimeOut + "; ";
                 DBString += " Allow User Variables = " + con_AllowUserInput + "; ";
-                DBString += " SslMode=none; ";
+                DBString += " SslMode = " + con_SslMode + "; ";
 
                 return DBString;
             }
@@ -49,8 +49,8 @@ namespace OmerkckEF.Biscom.DBContext
         private int con_ServerPort => DBServerInfo?.DbPort ?? 3306;
 
         private string? connSchemaName;
-		public string? ConnSchemaName
-		{
+        public string? ConnSchemaName
+        {
             get
             {
                 if (connSchemaName == null || connSchemaName != DBServerInfo?.DbSchema)
@@ -59,19 +59,20 @@ namespace OmerkckEF.Biscom.DBContext
                 return connSchemaName;
             }
             set => connSchemaName = value;
-		}
+        }
 
-		private string con_ServerUser => DBServerInfo?.DbUser ?? "root";
+        private string con_ServerUser => DBServerInfo?.DbUser ?? "root";
         private string con_ServerPassword => DBServerInfo?.DbPassword ?? "root123";
         private bool con_ServerPooling => DBServerInfo?.DbPooling ?? true;
         private int con_MaxPoolSize => DBServerInfo?.DbMaxpoolsize ?? 100;
         private int con_ConnectionLifeTime => DBServerInfo?.DbConnLifetime ?? 300;
         private int con_ConnectionTimeOut => DBServerInfo?.DbConnTimeout ?? 500;
         private bool con_AllowUserInput => DBServerInfo?.DbAllowuserinput ?? true;
+        private string con_SslMode => DBServerInfo?.DbSslMode ?? "none";
 
-		#endregion
-		#region Connection
-		protected bool OpenConnection(string? schemaName = "")
+        #endregion
+        #region Connection
+        protected bool OpenConnection(string? schemaName = "")
         {
             try
             {
@@ -82,21 +83,21 @@ namespace OmerkckEF.Biscom.DBContext
                     ConnSchemaName = schemaName;
                 }
                 else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
-				{
-					IsNewConnection = true;
-					ConnSchemaName = DBServerInfo?.DbSchema ?? "";
-				}				
+                {
+                    IsNewConnection = true;
+                    ConnSchemaName = DBServerInfo?.DbSchema ?? "";
+                }
 
-				if (MyConnection == null || IsNewConnection)
+                if (MyConnection == null || IsNewConnection)
                 {
                     MyConnection = (DbConnection)DALFactory.IDbConnection();
                     MyConnection.ConnectionString = ConnectionString;
                 }
 
-				if (MyConnection.State != ConnectionState.Open)
-					MyConnection.Open();
+                if (MyConnection.State != ConnectionState.Open)
+                    MyConnection.Open();
 
-				return true;
+                return true;
             }
             catch// (DbException ex)
             {
@@ -106,7 +107,7 @@ namespace OmerkckEF.Biscom.DBContext
                         MyConnection.Close();
                 }
 
-				//Bisco_ErrorInfo = ex.ErrorCode switch
+                //Bisco_ErrorInfo = ex.ErrorCode switch
                 //{
                 //    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
                 //    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
@@ -116,23 +117,23 @@ namespace OmerkckEF.Biscom.DBContext
                 return false;
             }
         }
-		protected async Task<bool> OpenConnectionAsync(string? schemaName = "")
+        protected async Task<bool> OpenConnectionAsync(string? schemaName = "")
         {
             try
             {
                 bool IsNewConnection = false;
-				if (schemaName != null && schemaName != string.Empty && ConnSchemaName != schemaName)
-				{
-					IsNewConnection = true;
-					ConnSchemaName = schemaName;
-				}
-				else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
-				{
-					IsNewConnection = true;
-					ConnSchemaName = DBServerInfo?.DbSchema ?? "";
-				}
+                if (schemaName != null && schemaName != string.Empty && ConnSchemaName != schemaName)
+                {
+                    IsNewConnection = true;
+                    ConnSchemaName = schemaName;
+                }
+                else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
+                {
+                    IsNewConnection = true;
+                    ConnSchemaName = DBServerInfo?.DbSchema ?? "";
+                }
 
-				if (MyConnection == null || IsNewConnection)
+                if (MyConnection == null || IsNewConnection)
                 {
                     MyConnection = (DbConnection)DALFactory.IDbConnection();
                     MyConnection.ConnectionString = ConnectionString;
@@ -145,33 +146,33 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch// (DbException ex)
             {
-				if (MyConnection != null)
-				{
-					if (MyConnection.State == ConnectionState.Open)
-						await MyConnection.CloseAsync();
-				}
+                if (MyConnection != null)
+                {
+                    if (MyConnection.State == ConnectionState.Open)
+                        await MyConnection.CloseAsync();
+                }
 
                 return false;
             }
         }
 
-		protected void CloseConnection()
-		{
-			try
-			{
-				if (MyConnection == null) return;
-				if (MyConnection.State != ConnectionState.Closed)
-				{
-					MyConnection.Close();
-				}
-			}
-			catch (Exception ex)
-			{
-				throw new Exception("While Close Connection, Error : " + ex.Message.ToString());
-			}
-		}
-		protected void CloseConnectionAsync()
-		{
+        protected void CloseConnection()
+        {
+            try
+            {
+                if (MyConnection == null) return;
+                if (MyConnection.State != ConnectionState.Closed)
+                {
+                    MyConnection.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("While Close Connection, Error : " + ex.Message.ToString());
+            }
+        }
+        protected void CloseConnectionAsync()
+        {
             try
             {
                 if (MyConnection == null) return;
@@ -185,11 +186,11 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 throw new Exception("While Close Connection, Error : " + ex.Message.ToString());
             }
-		}
-		#endregion
+        }
+        #endregion
 
-		#region Regular Operations (Adapter, Query etc.)
-		public DbCommand ExeCommand(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        #region Regular Operations (Adapter, Query etc.)
+        public DbCommand ExeCommand(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
@@ -257,10 +258,10 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch (Exception ex)
             {
-				CloseConnection();
-				return new Result<int> { IsSuccess = false, Message = "Executing NonQuery Error: " + ex.Message };
+                CloseConnection();
+                return new Result<int> { IsSuccess = false, Message = "Executing NonQuery Error: " + ex.Message };
             }
-		}
+        }
 
         public Result<object> RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
         {
@@ -270,7 +271,7 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-				if (!OpenConnection(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+                if (!OpenConnection(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
                 object? exeResult = null;
                 using (MyConnection)
@@ -298,13 +299,13 @@ namespace OmerkckEF.Biscom.DBContext
                         exeResult = command.ExecuteScalar();
                     }
                 }
-				return new Result<object> { IsSuccess = true, Data = exeResult };
-			}
+                return new Result<object> { IsSuccess = true, Data = exeResult };
+            }
             catch (Exception ex)
             {
-				CloseConnection();
-				return new Result<object> { IsSuccess = false, Message = "Executing ExecuteScalar Error: " + ex.Message };
-			}
+                CloseConnection();
+                return new Result<object> { IsSuccess = false, Message = "Executing ExecuteScalar Error: " + ex.Message };
+            }
         }
 
         public Result<DataTable?> RunDataTable(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
@@ -315,22 +316,22 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-				if (!OpenConnection(schema)) return new Result<DataTable?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
-                
-				using var command = ExeCommand(queryString, parameters, commandType);
-				using var dataReader = command.ExecuteReader(CommandBehavior.CloseConnection);
+                if (!OpenConnection(schema)) return new Result<DataTable?> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-				var dataTable = new DataTable();
-				if (dataReader != null && !dataReader.IsClosed)
-					dataTable.Load(dataReader);
+                using var command = ExeCommand(queryString, parameters, commandType);
+                using var dataReader = command.ExecuteReader(CommandBehavior.CloseConnection);
 
-				return new Result<DataTable?> { IsSuccess = true, Data = dataTable };
-			}
+                var dataTable = new DataTable();
+                if (dataReader != null && !dataReader.IsClosed)
+                    dataTable.Load(dataReader);
+
+                return new Result<DataTable?> { IsSuccess = true, Data = dataTable };
+            }
             catch (Exception ex)
             {
-				CloseConnection();
-				return new Result<DataTable?> { IsSuccess = false, Message = "Executing RunDataTable Error: " + ex.Message };
-			}
+                CloseConnection();
+                return new Result<DataTable?> { IsSuccess = false, Message = "Executing RunDataTable Error: " + ex.Message };
+            }
         }
         #endregion
 
@@ -343,89 +344,89 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-				if (!await OpenConnectionAsync(schema)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
-                
+                if (!await OpenConnectionAsync(schema)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
                 int exeResult = 0;
-				using (MyConnection)
+                using (MyConnection)
                 {
                     if (transaction)
                     {
                         using var _transaction = MyConnection?.BeginTransaction();
                         try
                         {
-							using var command = ExeCommand(queryString, parameters, commandType);
+                            using var command = ExeCommand(queryString, parameters, commandType);
 
-							command.Transaction = _transaction;
-							exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
-							_transaction?.Commit();
-						}
+                            command.Transaction = _transaction;
+                            exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
+                            _transaction?.Commit();
+                        }
                         catch
                         {
                             _transaction?.RollbackAsync();
-							return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
-						}
+                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
+                        }
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
-						exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
+                        exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
                     }
                 }
-				return new Result<int> { IsSuccess = exeResult > 0, Message= exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
-			}
+                return new Result<int> { IsSuccess = exeResult > 0, Message = exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
+            }
             catch (Exception ex)
             {
                 CloseConnectionAsync();
-				return new Result<int> { IsSuccess = false, Message = "Executing NonQueryAsync Error: " + ex.Message };
-			}
+                return new Result<int> { IsSuccess = false, Message = "Executing NonQueryAsync Error: " + ex.Message };
+            }
         }
 
-		public async Task<Result<object>> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
-		{
-			return await RunScalerAsync(null, queryString, parameters, transaction, commandType);
-		}
-		public async Task<Result<object>> RunScalerAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
-		{
+        public async Task<Result<object>> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        {
+            return await RunScalerAsync(null, queryString, parameters, transaction, commandType);
+        }
+        public async Task<Result<object>> RunScalerAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        {
             try
             {
-				if (!await OpenConnectionAsync(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+                if (!await OpenConnectionAsync(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
                 object? exeResult = null;
-				using (MyConnection)
+                using (MyConnection)
                 {
                     if (transaction)
                     {
                         using var _transaction = MyConnection?.BeginTransaction();
                         try
                         {
-							using var command = ExeCommand(queryString, parameters, commandType);
+                            using var command = ExeCommand(queryString, parameters, commandType);
 
-							command.Transaction = _transaction;
-							exeResult = await command.ExecuteScalarAsync() ?? null;
-							_transaction?.Commit();
-						}
+                            command.Transaction = _transaction;
+                            exeResult = await command.ExecuteScalarAsync() ?? null;
+                            _transaction?.Commit();
+                        }
                         catch
                         {
                             _transaction?.RollbackAsync();
-							return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished." };
-						}
+                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished." };
+                        }
                     }
                     else
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
-						exeResult = await command.ExecuteScalarAsync() ?? null;
+                        exeResult = await command.ExecuteScalarAsync() ?? null;
                     }
                 }
                 return new Result<object> { IsSuccess = true, Data = exeResult };
-			}
+            }
             catch (Exception ex)
             {
-				CloseConnectionAsync();
-				return new Result<object> { IsSuccess = false, Message = "Executing ExecuteScalarAsync Error: " + ex.Message };
-			}
+                CloseConnectionAsync();
+                return new Result<object> { IsSuccess = false, Message = "Executing ExecuteScalarAsync Error: " + ex.Message };
+            }
         }
 
-		public async Task<Result<DataTable>> RunDataTableAsync(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
+        public async Task<Result<DataTable>> RunDataTableAsync(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             return await RunDataTableAsync(null, queryString, parameters, commandType);
         }
@@ -445,14 +446,14 @@ namespace OmerkckEF.Biscom.DBContext
             }
             catch (Exception ex)
             {
-				CloseConnectionAsync();
-				return new Result<DataTable> { IsSuccess = false, Message = "Executing RunDataTableAsync Error: " + ex.Message };
+                CloseConnectionAsync();
+                return new Result<DataTable> { IsSuccess = false, Message = "Executing RunDataTableAsync Error: " + ex.Message };
             }
         }
         #endregion
 
-		#region IDisposable Members
-		public void Dispose()
+        #region IDisposable Members
+        public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);

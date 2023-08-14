@@ -2,7 +2,7 @@
 
 namespace TestLab
 {
-	public static class Function
+	public static class ExFunction
 	{
 		public static EntityContext EntityContext { get; } = new(DBServerInfo);
 
