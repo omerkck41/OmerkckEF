@@ -37,13 +37,48 @@ namespace OmerkckEF.Biscom.ToolKit
 		}
 		public static int? MyToInt(this object value)
 		{
-			if (value is int intValue)
-				return intValue;
-			else if (value is string strValue && int.TryParse(strValue, out int parsedInt))
-				return parsedInt;
+            if (value is null)
+                return 0;
 
-			return default;
-		}
+            if (value is int intValue)
+                return intValue;
+
+            if (value is string strValue)
+            {
+                if (int.TryParse(strValue, out int parsedInt))
+                    return parsedInt;
+            }
+            else if (value is IConvertible convertibleValue)
+            {
+                try
+                {
+                    if (convertibleValue is long longValue)
+                        return checked((int)longValue);
+                    else if (convertibleValue is short shortValue)
+                        return checked((int)shortValue);
+                    else if (convertibleValue is byte byteValue)
+                        return checked((int)byteValue);
+                    else if (convertibleValue is decimal decimalValue)
+                        return checked((int)decimalValue);
+                    else if (convertibleValue is double doubleValue)
+                        return checked((int)doubleValue);
+                    else if (convertibleValue is float floatValue)
+                        return checked((int)floatValue);
+                    else
+                        return Convert.ToInt32(convertibleValue);
+                }
+                catch (OverflowException)
+                {
+                    // Handle overflow errors if necessary
+                }
+                catch (Exception)
+                {
+                    // Handle conversion errors if necessary
+                }
+            }
+
+            return 0;
+        }
 		public static decimal? ToDecimal(this object convertit)
 		{
 			if (convertit is decimal decimalValue)
