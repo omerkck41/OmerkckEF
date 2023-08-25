@@ -110,7 +110,7 @@ namespace OmerkckEF.Biscom.DBContext
                     null => "; SELECT @@Identity;",
                     _ => "; SELECT @@Identity;",
                 };
-                var sqlQuery = $"Insert Into {schema ??= ConnSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}";
+                var sqlQuery = $"Insert Into {schema ??= ConnSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}" + ReturnIdentity;
 
 
                 if (getById)
@@ -488,7 +488,7 @@ namespace OmerkckEF.Biscom.DBContext
                     null => "; SELECT @@Identity;",
                     _ => "; SELECT @@Identity;",
                 };
-                var sqlQuery = $"Insert Into {schema ??= ConnSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}";
+                var sqlQuery = $"Insert Into {schema ??= ConnSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}" + ReturnIdentity;
 
 
                 if (getById)
