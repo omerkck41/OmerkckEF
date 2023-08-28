@@ -325,7 +325,8 @@ namespace OmerkckEF.Biscom.ToolKit
             {
                 string RequiredError = string.Empty;
 				string UniqueError = string.Empty;
-				string IdentityName = string.Empty;
+                string MaxLengthError = string.Empty;
+                string IdentityName = string.Empty;
 				var IdentValue = 0;
                 Dictionary<string, object> dict = new();
 
@@ -338,7 +339,19 @@ namespace OmerkckEF.Biscom.ToolKit
 				                                               (x.GetValue(Entity) is null || string.IsNullOrEmpty(x.GetValue(Entity)!.ToString())))
 	                                               .Select(s => s.Name + " = " + s.GetCustomAttribute<RequiredAttribute>()?.ErrorMessage).ToArray();
 
-				RequiredError = required.Length > 0 ? $"- {string.Join("\n- ", required)}\n{required.Length} column(s) cannot be null!!!" : "";
+                RequiredError = required.Length > 0 ? $"- {string.Join("\n- ", required)}\n{required.Length} column(s) cannot be null!!!" : "";
+
+                
+				///Controls of MaxLength fields
+                type.GetProperties()
+                    .Where(x => x.GetCustomAttribute(typeof(MaxLengthAttribute)) != null && x.GetValue(Entity) is string value && value.Length > x.GetCustomAttribute<MaxLengthAttribute>()!.Length)
+                    .Select(s => s.Name + " = " + s.GetCustomAttribute<MaxLengthAttribute>()?.ErrorMessage).ToList()
+                    .ForEach(f =>
+                    {
+                        MaxLengthError += "- " + f + "\n";
+                    });
+
+                MaxLengthError += !string.IsNullOrEmpty(MaxLengthError) ? $"{MaxLengthError.Split('\n').Length - 1} column(s) exceed maximum length!!!" : "";
 
 
                 ///Controls of Unique fields
@@ -372,8 +385,13 @@ namespace OmerkckEF.Biscom.ToolKit
 									});
 				UniqueError += !string.IsNullOrEmpty(UniqueError) ? $"{UniqueError.Split('\n').Length-1} column(s) must be Unique. The entered values are available.!!!" : null;
 
+								
+                return RequiredError += !string.IsNullOrEmpty(UniqueError) || !string.IsNullOrEmpty(MaxLengthError)
+										? (!string.IsNullOrEmpty(RequiredError) ? "\n<-------->\n" + 
+																	UniqueError + "\n<-------->\n" + 
+												   MaxLengthError : UniqueError + "\n<-------->\n" + MaxLengthError)
+										: null;
 
-				return RequiredError += !string.IsNullOrEmpty(UniqueError) ? !string.IsNullOrEmpty(RequiredError) ? "\n<----------------->\n" + UniqueError : UniqueError : null;
             }
             catch
             {
