@@ -58,7 +58,10 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public Result<List<T>> GetMapClass<T>(Expression<Func<T, bool>> filter) where T : class
         {
-            QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+            if (filter != null)
+                QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+            else
+                QueryString = $"Select * from {ConnSchemaName}.{typeof(T).Name};";
 
             return GetMapClass<T>(QueryString);
         }
