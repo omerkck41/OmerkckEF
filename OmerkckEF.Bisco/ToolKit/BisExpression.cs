@@ -190,9 +190,11 @@ namespace OmerkckEF.Biscom.ToolKit
 
 	public static class ExpressionExtensions
 	{
-		public static string ConvertExpressionToQueryString<T>(this Expression<Func<T, bool>> ReceivedExp)
+		public static string? ConvertExpressionToQueryString<T>(this Expression<Func<T, bool>> ReceivedExp)
 		{
-			BisExpression expVisitor = new();
+			if (ReceivedExp == null) return default;
+
+            BisExpression expVisitor = new();
 
 			Expression exp = expVisitor.ModifyExpression(ReceivedExp.Body);
 
