@@ -9,6 +9,7 @@ namespace OmerkckEF.Biscom.Interfaces
         Result<int> Insert(T entity);
         Result<bool> MultiInsert(IEnumerable<T> entityList);
         Result<bool> Update(T entity);
+        Result<bool> UpdateCompositeTable(T entity, params object[] args);
         Result<bool> Delete(T entity);
     }
 }

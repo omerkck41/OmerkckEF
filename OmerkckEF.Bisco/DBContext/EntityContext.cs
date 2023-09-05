@@ -91,6 +91,7 @@ namespace OmerkckEF.Biscom.DBContext
             return GetMapClass<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), commandType);
         }
         #endregion
+
         #region Create
         private Result<int> DoInsert<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
         {
@@ -183,6 +184,7 @@ namespace OmerkckEF.Biscom.DBContext
             return DoMapMultiInsert<T>(ConnSchemaName, entityList);
         }
         #endregion
+
         #region Update
         private Result<bool> DoUpdate<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
         {
@@ -269,6 +271,7 @@ namespace OmerkckEF.Biscom.DBContext
             return DoMapUpdateCompositeTable<T>(null, currentT, fieldValue);
         }
         #endregion
+
         #region Delete
         public Result<bool> DoMapDelete<T>(string? schema, T entity, bool transaction = false) where T : class
         {
@@ -494,6 +497,7 @@ namespace OmerkckEF.Biscom.DBContext
             return await GetMapClassAsync<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? ConnSchemaName : schema), commandType);
         }
         #endregion
+
         #region Create
         private async Task<Result<int>> DoInsertAsync<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
         {
@@ -585,6 +589,7 @@ namespace OmerkckEF.Biscom.DBContext
             return await DoMapMultiInsertAsync<T>(ConnSchemaName, entityList);
         }
         #endregion
+
         #region Update
         private async Task<Result<bool>> DoUpdateAsync<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
         {
@@ -647,6 +652,7 @@ namespace OmerkckEF.Biscom.DBContext
             return await DoUpdateAsync<T>(ConnSchemaName, currentT, fields, transaction);
         }
         #endregion
+
         #region Delete
         public async Task<Result<bool>> DoMapDeleteAsync<T>(string? schema, T entity, bool transaction = false) where T : class
         {

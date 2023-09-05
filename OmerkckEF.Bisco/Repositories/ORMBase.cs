@@ -62,6 +62,8 @@ namespace OmerkckEF.Biscom.Repositories
         public virtual Result<bool> Update(T currentT) => DBContext.DoMapUpdate(currentT);
         public virtual Result<bool> Update(T currentT, bool transaction) => DBContext.DoMapUpdate(currentT, transaction);
         public virtual Result<bool> Update(string? schema, T currentT, bool transaction = false) => DBContext.DoMapUpdate(schema, currentT, transaction);
+        public virtual Result<bool> UpdateCompositeTable(T currentT, params object[] args) => DBContext.DoMapUpdateCompositeTable(currentT, args);
+        public virtual Result<bool> UpdateCompositeTable(string? schema, T currentT, params object[] args) => DBContext.DoMapUpdateCompositeTable(schema, currentT, args);
 
 
         /// Delete
