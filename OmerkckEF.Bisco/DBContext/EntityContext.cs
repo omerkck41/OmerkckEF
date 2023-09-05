@@ -1,8 +1,10 @@
-﻿using OmerkckEF.Biscom.ToolKit;
+﻿using MySqlX.XDevAPI;
+using OmerkckEF.Biscom.ToolKit;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Transactions;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 
@@ -228,19 +230,43 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public Result<bool> DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
         {
-            var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-                                         .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
+            return DoMapUpdate<T>(ConnSchemaName, currentT, transaction);
+        }
+        public Result<bool> DoMapUpdateCompositeTable<T>(string? schema, T currentT, params object[] fieldValue) where T : class
+        {
+            //If there is no KeyAttribute, it is a Composite table.
+            string identityColm = (string)currentT.GetKeyAttribute<T>();
+            string? whereClause = string.Empty;
+            schema ??= ConnSchemaName;
 
-            var entity = GetMapClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
+            if (identityColm == null)
+            {
+                object[] keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                                .Where(x => x.GetValue(currentT) != null)
+                                .Select(x => (object)x.Name)
+                                .ToArray();
 
-            if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
+                if (keys.Length <= 0 || fieldValue.Length <= 0)
+                    return new Result<bool> { IsSuccess = false, Message = "Fields or Columns Null" };
 
-            List<string> fields = GetChangedFields<T>(currentT, entity);
+                whereClause = $"where {keys[0]}={fieldValue[0]} and {keys[1]}={fieldValue[1]}";
+            }
 
-            if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
+            var setField = typeof(T).GetProperties()
+                                         .Where(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any())
+                                         .Select(s => $"{s.Name}={s.GetValue(currentT)}");
 
-            return DoUpdate<T>(ConnSchemaName, currentT, fields, transaction);
+            var sqlQuery = $"Update {schema}.{typeof(T).Name} set {string.Join(" , ", setField)} {whereClause};";
+            var exeResult = RunNonQuery(schema, sqlQuery);
+
+
+            return !exeResult.IsSuccess
+                   ? new Result<bool> { IsSuccess = false, Message = "Database DoMapUpdateCompositeTable RunNonQuery error.\n" + exeResult.Message }
+                   : new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
+        }
+        public Result<bool> DoMapUpdateCompositeTable<T>(T currentT, params object[] fieldValue) where T : class
+        { 
+            return DoMapUpdateCompositeTable<T>(null, currentT, fieldValue);
         }
         #endregion
         #region Delete
@@ -252,9 +278,10 @@ namespace OmerkckEF.Biscom.DBContext
 
 
                 var identityColumn = entity.GetKeyAttribute<T>();
-                var identityValue = typeof(T).GetProperties()
-                                             .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-                                             .Select(s => s.GetValue(entity)).FirstOrDefault();
+                //var identityValue = typeof(T).GetProperties()
+                //                             .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                //                             .Select(s => s.GetValue(entity)).FirstOrDefault();
+                var identityValue = entity.GetEntityValue<T, KeyAttribute>();
 
                 if (identityValue == null || (int)identityValue == 0)
                     return new Result<bool> { IsSuccess = false, Message = $"{identityColumn}; Identity Colum not found." };

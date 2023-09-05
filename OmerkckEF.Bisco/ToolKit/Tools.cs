@@ -101,6 +101,30 @@ namespace OmerkckEF.Biscom.ToolKit
             return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
                                             .Select(p => p.Name).FirstOrDefault()!;
 		}
+		public static object? GetEntityValue<T, TAttribute>(this T entity, string propertyName = null) where T : class where TAttribute : class
+		{
+            PropertyInfo? property;
+
+            if (!string.IsNullOrEmpty(propertyName))
+            {
+                property = typeof(T).GetProperties()
+                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Any())
+                                    .FirstOrDefault(x => x.Name == propertyName);
+            }
+            else
+            {
+                property = typeof(T).GetProperties()
+                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Any())
+                                    .FirstOrDefault();
+            }
+
+            if (property != null)
+            {
+                return property.GetValue(entity);
+            }
+
+            return null;
+        }
 		private static string GetColumnNames<T>(T entity) where T : class
 		{
 			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
