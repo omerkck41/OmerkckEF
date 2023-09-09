@@ -5,8 +5,6 @@ VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OmerkckEF.Biscom", "OmerkckEF.Bisco\OmerkckEF.Biscom.csproj", "{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestLap", "TestLap\TestLap.csproj", "{FDA0A412-369E-4F4E-8D4F-5E618B5F0207}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +15,6 @@ Global
 		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{15CD1D26-7F93-49AE-AD5B-8A3B78D89AF0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FDA0A412-369E-4F4E-8D4F-5E618B5F0207}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FDA0A412-369E-4F4E-8D4F-5E618B5F0207}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FDA0A412-369E-4F4E-8D4F-5E618B5F0207}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FDA0A412-369E-4F4E-8D4F-5E618B5F0207}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

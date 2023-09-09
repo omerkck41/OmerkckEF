@@ -1,15 +1,17 @@
-﻿using System.Data;
+﻿using OmerkckEF.Biscom.DBContext;
+using System.Data;
+using System.Data.Common;
 
 namespace OmerkckEF.Biscom.Interfaces
 {
-	public interface IDALFactory
+    public abstract class IDALFactory
     {
-        public string ConnectionString { get; set; }
+        public abstract IDbConnection IDbConnection();
+        public abstract IDbCommand IDbCommand();
+        public abstract IDbDataParameter IDbParameter();
+        public abstract IDbDataAdapter IDbAdapter();
+        public abstract IDbTransaction IDbTransaction();
 
-        IDbConnection IDbConnection();
-        IDbCommand IDbCommand();
-        IDbDataParameter IDbParameter();
-        IDbDataAdapter IDbAdapter();
-        IDbTransaction IDbTransaction();
+        public abstract DbConnectionStringBuilder IDbConnectionStringBuilder(DBServer dbServerInfo);
     }
 }

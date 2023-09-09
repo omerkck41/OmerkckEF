@@ -30,7 +30,7 @@ namespace OmerkckEF.Biscom.DBContext
         [DataName]
         public bool DbAllowuserinput { get; set; } = true;
         [DataName]
-        public string DbSslMode { get; set; } = "none";
+        public string DbSslMode { get; set; } = "None";
         [DataName]
         public bool DbActivity { get; set; }
 

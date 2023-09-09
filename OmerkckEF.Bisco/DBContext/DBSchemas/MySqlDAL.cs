@@ -1,31 +1,45 @@
 ﻿using MySql.Data.MySqlClient;
 using OmerkckEF.Biscom.Interfaces;
 using System.Data;
+using System.Data.Common;
 
 namespace OmerkckEF.Biscom.DBContext.DBSchemas
 {
-	public class MySqlDAL : IDALFactory
+    public class MySqlDAL : IDALFactory
     {
-        private string? _ConnectionString = "server=127.0.0.1;user=root;database=gmt_db;port=3306;password=1q2w3e4r;";
-        public string ConnectionString
-        {
-            get
-            {
-                if (_ConnectionString == string.Empty || _ConnectionString == null)
-                    throw new ArgumentException("Invalid database connection string.");
-
-                return _ConnectionString;
-            }
-            set { _ConnectionString = value; }
-        }
-
-        public MySqlDAL(string connectionString) { ConnectionString = connectionString; }
         public MySqlDAL() { }
 
-        public IDbConnection IDbConnection() => new MySqlConnection();
-        public IDbCommand IDbCommand()=> new MySqlCommand();
-        public IDbDataParameter IDbParameter() => new MySqlParameter();
-        public IDbDataAdapter IDbAdapter() => new MySqlDataAdapter();
-        public IDbTransaction IDbTransaction() => new MySqlConnection().BeginTransaction();
-	}
+        public override IDbConnection IDbConnection() => new MySqlConnection();
+        public override IDbCommand IDbCommand() => new MySqlCommand();
+        public override IDbDataParameter IDbParameter() => new MySqlParameter();
+        public override IDbDataAdapter IDbAdapter() => new MySqlDataAdapter();
+        public override IDbTransaction IDbTransaction() => new MySqlConnection().BeginTransaction();
+
+
+        public override DbConnectionStringBuilder IDbConnectionStringBuilder(DBServer dbServerInfo)
+        {
+            MySqlConnectionStringBuilder builder = new()
+            {
+                Server = dbServerInfo?.DbIp ?? "127.0.0.1",
+                Port = (uint)(dbServerInfo?.DbPort ?? 3336),
+                Database = dbServerInfo?.DbSchema ?? "",
+                UserID = dbServerInfo?.DbUser ?? "root",
+                Password = dbServerInfo?.DbPassword ?? "root123",
+                Pooling = dbServerInfo?.DbPooling ?? true,
+                MaximumPoolSize = (uint)(dbServerInfo?.DbMaxpoolsize ?? 100),
+                ConnectionLifeTime = (uint)(dbServerInfo?.DbConnLifetime ?? 300),
+                ConnectionTimeout = (uint)(dbServerInfo?.DbConnTimeout ?? 500),
+                AllowUserVariables = dbServerInfo?.DbAllowuserinput ?? true,
+                //SslMode = (MySqlSslMode)Enum.Parse(typeof(MySqlSslMode), dbServerInfo?.DbSslMode)
+            };
+
+            if (Enum.TryParse(dbServerInfo?.DbSslMode, true, out MySqlSslMode sslMode))
+                builder.SslMode = sslMode;
+            else
+                builder.SslMode = MySqlSslMode.Disabled;
+
+
+            return builder;
+        }
+    }
 }

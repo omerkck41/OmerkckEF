@@ -15,7 +15,7 @@ namespace OmerkckEF.Biscom.Repositories
         {
             get
             {
-                if (DBServer.DBServerInfo?.DbSchema != DBContext?.ConnSchemaName) { DBContext?.Dispose(); }
+                if (DBServer.DBServerInfo?.DbSchema != DBContext?.DBSchemaName) { DBContext?.Dispose(); }
 
                 if (_current != null) return _current as OT;
 

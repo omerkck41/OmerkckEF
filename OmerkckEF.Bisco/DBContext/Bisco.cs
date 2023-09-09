@@ -11,87 +11,43 @@ namespace OmerkckEF.Biscom.DBContext
     {
         #region Properties
         private IDALFactory DALFactory { get; set; }
+        public DbConnectionStringBuilder ConnectionStringBuilder { get; set; }
         protected DbConnection? MyConnection { get; set; }
-        private DBServer? DBServerInfo { get; set; }
+        private DBServer DBServerInfo { get; set; }
+        public string? DBSchemaName
+        {
+            get
+            {
+                return DBServerInfo?.DbSchema;
+            }
+        }
         #endregion
 
         public Bisco(DBServer dbServerInfo)
         {
             DBServerInfo = dbServerInfo;
-            var SelectDBConn = DBServerInfo?.DBModel ?? DataBaseType.MySql;
+            var SelectDBConn = DBServerInfo.DBModel ?? DataBaseType.MySql;
             DALFactory = DALFactoryBase.GetDataBase((DataBaseType)SelectDBConn);
+
+            ConnectionStringBuilder = DALFactory.IDbConnectionStringBuilder(dbServerInfo);
         }
 
-        #region ConnectionString
-
-        protected string ConnectionString
-        {
-            get
-            {
-                string DBString = "";
-                DBString += " server = " + con_ServerIP + "; ";
-                DBString += " port=" + con_ServerPort + "; ";
-                DBString += " database = " + ConnSchemaName + "; ";
-                DBString += " Uid=" + con_ServerUser + "; ";
-                DBString += " Pwd = " + con_ServerPassword + "; ";
-                DBString += " pooling = " + con_ServerPooling + "; ";
-                DBString += " Max Pool Size = " + con_MaxPoolSize + "; ";
-                DBString += " connection lifetime = " + con_ConnectionLifeTime + "; ";
-                DBString += " connection timeout = " + con_ConnectionTimeOut + "; ";
-                DBString += " Allow User Variables = " + con_AllowUserInput + "; ";
-                DBString += " SslMode = " + con_SslMode + "; ";
-
-                return DBString;
-            }
-        }
-
-        private string con_ServerIP => DBServerInfo?.DbIp ?? "127.0.0.1";
-        private int con_ServerPort => DBServerInfo?.DbPort ?? 3306;
-
-        private string? connSchemaName;
-        public string? ConnSchemaName
-        {
-            get
-            {
-                if (connSchemaName == null || connSchemaName != DBServerInfo?.DbSchema)
-                    connSchemaName = DBServerInfo?.DbSchema;
-
-                return connSchemaName;
-            }
-            set => connSchemaName = value;
-        }
-
-        private string con_ServerUser => DBServerInfo?.DbUser ?? "root";
-        private string con_ServerPassword => DBServerInfo?.DbPassword ?? "root123";
-        private bool con_ServerPooling => DBServerInfo?.DbPooling ?? true;
-        private int con_MaxPoolSize => DBServerInfo?.DbMaxpoolsize ?? 100;
-        private int con_ConnectionLifeTime => DBServerInfo?.DbConnLifetime ?? 300;
-        private int con_ConnectionTimeOut => DBServerInfo?.DbConnTimeout ?? 500;
-        private bool con_AllowUserInput => DBServerInfo?.DbAllowuserinput ?? true;
-        private string con_SslMode => DBServerInfo?.DbSslMode ?? "none";
-
-        #endregion
         #region Connection
         protected bool OpenConnection(string? schemaName = "")
         {
             try
             {
                 bool IsNewConnection = false;
-                if (schemaName != null && schemaName != string.Empty && ConnSchemaName != schemaName)
+                if (!string.IsNullOrEmpty(schemaName) && DBServerInfo.DbSchema != schemaName)
                 {
                     IsNewConnection = true;
-                    ConnSchemaName = schemaName;
-                }
-                else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
-                {
-                    IsNewConnection = true;
-                    ConnSchemaName = DBServerInfo?.DbSchema ?? "";
+                    DBServerInfo.DbSchema = schemaName;
                 }
 
                 if (MyConnection == null || IsNewConnection)
                 {
                     MyConnection = (DbConnection)DALFactory.IDbConnection();
-                    MyConnection.ConnectionString = ConnectionString;
+                    MyConnection.ConnectionString = ConnectionStringBuilder.ConnectionString;
                 }
 
                 if (MyConnection.State != ConnectionState.Open)
@@ -122,21 +78,16 @@ namespace OmerkckEF.Biscom.DBContext
             try
             {
                 bool IsNewConnection = false;
-                if (schemaName != null && schemaName != string.Empty && ConnSchemaName != schemaName)
+                if (!string.IsNullOrEmpty(schemaName) && DBServerInfo.DbSchema != schemaName)
                 {
                     IsNewConnection = true;
-                    ConnSchemaName = schemaName;
-                }
-                else if ((schemaName == null || schemaName == string.Empty) && ConnSchemaName != DBServerInfo?.DbSchema)
-                {
-                    IsNewConnection = true;
-                    ConnSchemaName = DBServerInfo?.DbSchema ?? "";
+                    DBServerInfo.DbSchema = schemaName;
                 }
 
                 if (MyConnection == null || IsNewConnection)
                 {
                     MyConnection = (DbConnection)DALFactory.IDbConnection();
-                    MyConnection.ConnectionString = ConnectionString;
+                    MyConnection.ConnectionString = ConnectionStringBuilder.ConnectionString;
                 }
 
                 if (MyConnection.State != ConnectionState.Open)
