@@ -59,11 +59,15 @@ namespace OmerkckEF.Biscom.ToolKit
 					prop.SetValue(entity, int.Parse(value.ToString() ?? ""));
 					break;
 
-				case Type t when t == typeof(bool) || t == typeof(bool?):
-					prop.SetValue(entity, bool.Parse(value.ToString() ?? ""));
-					break;
+                case Type t when t == typeof(bool) || t == typeof(bool?):
+                    if (int.TryParse(value.ToString(), out int intValue))
+                    {
+                        bool? boolValue = intValue == 1;
+                        prop.SetValue(entity, boolValue);
+                    }
+                    break;
 
-				case Type t when t == typeof(DateTime) || t == typeof(DateTime?):
+                case Type t when t == typeof(DateTime) || t == typeof(DateTime?):
 					prop.SetValue(entity, DateTime.Parse(value.ToString() ?? ""));
 					break;
 
