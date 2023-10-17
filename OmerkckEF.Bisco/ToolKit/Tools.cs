@@ -60,11 +60,14 @@ namespace OmerkckEF.Biscom.ToolKit
 					break;
 
                 case Type t when t == typeof(bool) || t == typeof(bool?):
-                    if (int.TryParse(value.ToString(), out int intValue))
-                    {
-                        bool? boolValue = intValue == 1;
+                    if (value is bool boolValue)
                         prop.SetValue(entity, boolValue);
-                    }
+                    else if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
+                        prop.SetValue(entity, parsedBoolValue);
+                    //else
+                    //{
+                    //    throw new InvalidCastException($"Cannot convert '{value}' to {prop.PropertyType}");
+                    //}
                     break;
 
                 case Type t when t == typeof(DateTime) || t == typeof(DateTime?):
