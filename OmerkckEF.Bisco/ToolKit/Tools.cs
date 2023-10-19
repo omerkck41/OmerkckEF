@@ -181,14 +181,22 @@ namespace OmerkckEF.Biscom.ToolKit
 
 				var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
 
-                var keys = list.SelectMany((item, index) =>
-                                                propertyInfos.Where(p => p.GetValue(item) != null)
-                                                .Select(p => p.Name)
-                                          ).Distinct();
+                //var keys = list.SelectMany((item, index) =>
+                //                                propertyInfos.Where(p => p.GetValue(item) != null)
+                //                                .Select(p => p.Name)
+                //                          ).Distinct();
+
+                //var valuesList = list.Select((item, index) => {
+                //    var validProperties = propertyInfos.Where(p => p.GetValue(item) != null);
+                //    var values = validProperties.Select(p => $"@{index}{p.Name}");
+                //    return "(" + string.Join(", ", values) + ")";
+                //});
+
+                var keys = propertyInfos.Select(p => p.Name);
 
                 var valuesList = list.Select((item, index) => {
                     var validProperties = propertyInfos.Where(p => p.GetValue(item) != null);
-                    var values = validProperties.Select(p => $"@{index}{p.Name}");
+                    var values = keys.Select(key => validProperties.Any(p => p.Name == key) ? $"@{index}{key}" : "NULL");
                     return "(" + string.Join(", ", values) + ")";
                 });
 
