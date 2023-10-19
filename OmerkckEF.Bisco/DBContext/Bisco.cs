@@ -193,10 +193,10 @@ namespace OmerkckEF.Biscom.DBContext
                             exeResult = command.ExecuteNonQuery();
                             _transaction?.Commit();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             _transaction?.Rollback();
-                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
+                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
                         }
                     }
                     else
@@ -238,10 +238,10 @@ namespace OmerkckEF.Biscom.DBContext
                             exeResult = command.ExecuteScalar();
                             _transaction?.Commit();
                         }
-                        catch
+                        catch (Exception ex)
                         {
                             _transaction?.Rollback();
-                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished." };
+                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
                         }
                     }
                     else
@@ -311,10 +311,10 @@ namespace OmerkckEF.Biscom.DBContext
                             exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
                             _transaction?.Commit();
                         }
-                        catch
+                        catch(Exception ex)
                         {
                             _transaction?.RollbackAsync();
-                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished." };
+                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
                         }
                     }
                     else
@@ -356,10 +356,10 @@ namespace OmerkckEF.Biscom.DBContext
                             exeResult = await command.ExecuteScalarAsync() ?? null;
                             _transaction?.Commit();
                         }
-                        catch
+                        catch(Exception ex)
                         {
                             _transaction?.RollbackAsync();
-                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished." };
+                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
                         }
                     }
                     else
