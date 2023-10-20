@@ -92,8 +92,20 @@ namespace OmerkckEF.Biscom.ToolKit
 						nodeType = $"--Binary expression '{binary.NodeType}' not supported.--";
 						break;
 				}
-				return $"({ConvertExpressionToString(binary.Left)} {nodeType} {ConvertExpressionToString(binary.Right)})";
-			}
+                string rightExpression = ConvertExpressionToString(binary.Right);
+                if (rightExpression == null)
+                {
+                    if (nodeType == "=")
+                    {
+                        nodeType = "is null";
+                    }
+                    else if (nodeType == "!=")
+                    {
+                        nodeType = "is not null";
+                    }
+                }
+                return $"({ConvertExpressionToString(binary.Left)} {nodeType} {rightExpression})";
+            }
 			else if (typeof(MemberExpression).IsAssignableFrom(expression.GetType()))
 			{
 				var member = (MemberExpression)expression;
@@ -114,7 +126,7 @@ namespace OmerkckEF.Biscom.ToolKit
 			{
 				var constant = (ConstantExpression)expression;
 				if (constant.Value == null)
-					return "''";
+					return null;
 				else
 				{
 					if (typeof(int).IsAssignableFrom(constant.Value.GetType()))
