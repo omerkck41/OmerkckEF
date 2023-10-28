@@ -63,7 +63,7 @@ namespace OmerkckEF.Biscom.ToolKit
 					if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
 						prop.SetValue(entity, parsedBoolValue);
 					else if (int.TryParse(value.ToString(), out int parsedIntValue))
-						prop.SetValue(entity, parsedIntValue);
+						prop.SetValue(entity, parsedIntValue != 0);
                     //else
                     //{
                     //    throw new InvalidCastException($"Cannot convert '{value}' to {prop.PropertyType}");
