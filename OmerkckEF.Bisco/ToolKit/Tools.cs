@@ -60,12 +60,10 @@ namespace OmerkckEF.Biscom.ToolKit
 					break;
 
                 case Type t when t == typeof(bool) || t == typeof(bool?):
-					if (value is bool boolValue)
-						prop.SetValue(entity, boolValue);
-					else if (value is int intValue)
-						prop.SetValue(entity, intValue);
-					else if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
+					if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
 						prop.SetValue(entity, parsedBoolValue);
+					else if (int.TryParse(value.ToString(), out int parsedIntValue))
+						prop.SetValue(entity, parsedIntValue);
                     //else
                     //{
                     //    throw new InvalidCastException($"Cannot convert '{value}' to {prop.PropertyType}");
