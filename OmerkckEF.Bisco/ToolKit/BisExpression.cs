@@ -165,7 +165,7 @@ namespace OmerkckEF.Biscom.ToolKit
 						if (method.Object == null)
 							return $"({ConvertExpressionToString(method.Arguments[1])} IN {ConvertExpressionToString(method.Arguments[0])})";
 						else
-							return $"({ConvertExpressionToString(method.Arguments[0])} IN {ConvertExpressionToString(method.Object!)})";
+							return $"({ConvertExpressionToString(method.Arguments[0])} IN ({ConvertExpressionToString(method.Object!)}))";
 					case "StartsWith":
 						return $"({ConvertExpressionToString(method.Object!)} LIKE '{ConvertExpressionToString(method.Arguments[0])}%')";
 					case "EndsWith":
