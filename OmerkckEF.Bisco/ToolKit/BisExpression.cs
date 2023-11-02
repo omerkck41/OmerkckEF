@@ -164,9 +164,9 @@ namespace OmerkckEF.Biscom.ToolKit
 					case "Contains":
 						if (method.Object == null)
 							return $"({ConvertExpressionToString(method.Arguments[1])} IN {ConvertExpressionToString(method.Arguments[0])})";
-						else
-							return $"({ConvertExpressionToString(method.Arguments[0])} IN ({ConvertExpressionToString(method.Object!)}))";
-					case "StartsWith":
+                        else
+                            return $"({ConvertExpressionToString(method.Object!)} LIKE ('%{ConvertExpressionToString(method.Arguments[0]).Replace("'", "")}%'))";
+                    case "StartsWith":
 						return $"({ConvertExpressionToString(method.Object!)} LIKE '{ConvertExpressionToString(method.Arguments[0])}%')";
 					case "EndsWith":
 						return $"({ConvertExpressionToString(method.Object!)} LIKE '%{ConvertExpressionToString(method.Arguments[0])}')";
