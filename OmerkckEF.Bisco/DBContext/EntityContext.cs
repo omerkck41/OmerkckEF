@@ -268,6 +268,27 @@ namespace OmerkckEF.Biscom.DBContext
         { 
             return DoMapUpdateCompositeTable<T>(null, currentT, fieldValue);
         }
+        public Result<bool> DoUpdateQuery<T>(Dictionary<string, object> prms, Expression<Func<T, bool>> filter)
+        {
+            try
+            {
+                if (prms == null) return new Result<bool> { IsSuccess = false, Message = "Parameters Null" };
+
+                var setClause = string.Join(" , ", prms.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList());
+
+                var sqlQuery = $"Update {DBSchemaName}.{typeof(T).Name} set {setClause} where {filter.ConvertExpressionToQueryString()}";
+                var exeResult = RunNonQuery(sqlQuery, prms);
+
+                return !exeResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database DoUpdateQuery RunNonQuery error.\n" + exeResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing DoUpdateQuery Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
         #endregion
 
         #region Delete
