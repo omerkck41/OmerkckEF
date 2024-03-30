@@ -1,4 +1,4 @@
-﻿using MySql.Data.MySqlClient;
+﻿using MySqlConnector;
 using OmerkckEF.Biscom.Interfaces;
 using System.Data;
 using System.Data.Common;

@@ -83,6 +83,7 @@ namespace OmerkckEF.Biscom.Repositories
         }
 
         private bool disposed = false;
+
         protected virtual void Dispose(bool disposing)
         {
             if (!disposed)

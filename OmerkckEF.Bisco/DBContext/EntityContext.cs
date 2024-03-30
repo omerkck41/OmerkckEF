@@ -1,8 +1,8 @@
-﻿using OmerkckEF.Biscom.ToolKit;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using OmerkckEF.Biscom.ToolKit;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 
@@ -27,9 +27,8 @@ namespace OmerkckEF.Biscom.DBContext
 
                 queryString ??= $"Select * from {schema ??= DBSchemaName}.{typeof(T).Name}";
 
-                using var connection = MyConnection;
                 using var command = ExeCommand(queryString, parameters, commandType);
-                using var reader = command.ExecuteReader();
+                using var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
                 var entities = new List<T>();
 
                 while (reader.Read())
@@ -65,12 +64,12 @@ namespace OmerkckEF.Biscom.DBContext
 
             return GetMapClass<T>(QueryString);
         }
-        public Result<T> GetMapClassById<T>(object id, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public Result<T> GetMapClassById<T>(object id) where T : class
         {
             var entity = Activator.CreateInstance<T>();
             QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
 
-            var exeResult = GetMapClass<T>(QueryString, parameters, DBSchemaName, commandType);
+            var exeResult = GetMapClass<T>(QueryString);
 
             return exeResult.IsSuccess
                 ? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
@@ -119,7 +118,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 if (getById)
                 {
-                    var exeResult = RunScaler(schema, sqlQuery, parameters, transaction);
+                    var exeResult = RunScaler(schema, sqlQuery, parameters);
                     return !exeResult.IsSuccess
                            ? new Result<int> { IsSuccess = false, Message = "Database DoInsert RunScaler error.\n" + exeResult.Message }
                            : new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };
@@ -265,7 +264,7 @@ namespace OmerkckEF.Biscom.DBContext
                    : new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
         }
         public Result<bool> DoMapUpdateCompositeTable<T>(T currentT, params object[] fieldValue) where T : class
-        { 
+        {
             return DoMapUpdateCompositeTable<T>(null, currentT, fieldValue);
         }
         public Result<bool> DoUpdateQuery<T>(Dictionary<string, object> prms, Expression<Func<T, bool>> filter)
@@ -457,7 +456,6 @@ namespace OmerkckEF.Biscom.DBContext
 
                 queryString ??= $"Select * from {schema ??= DBSchemaName}.{typeof(T).Name}";
 
-                using var connection = MyConnection;
                 using var command = ExeCommand(queryString, parameters, commandType);
                 using var reader = await command.ExecuteReaderAsync();
                 var entities = new List<T>();
@@ -492,12 +490,12 @@ namespace OmerkckEF.Biscom.DBContext
 
             return await GetMapClassAsync<T>(QueryString);
         }
-        public async Task<Result<T>> GetMapClassByIdAsync<T>(object id, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public async Task<Result<T>> GetMapClassByIdAsync<T>(object id) where T : class
         {
             var entity = Activator.CreateInstance<T>();
             QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
 
-            var exeResult = await GetMapClassAsync<T>(QueryString, parameters, DBSchemaName, commandType);
+            var exeResult = await GetMapClassAsync<T>(QueryString);
 
             return exeResult.IsSuccess
                 ? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
@@ -546,7 +544,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 if (getById)
                 {
-                    var exeResult = await RunScalerAsync(schema, sqlQuery, parameters, transaction).ConfigureAwait(false);
+                    var exeResult = await RunScalerAsync(schema, sqlQuery, parameters).ConfigureAwait(false);
                     return !exeResult.IsSuccess
                            ? new Result<int> { IsSuccess = false, Message = "Database DoInsertAsync RunScalerAsync error.\n" + exeResult.Message }
                            : new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };

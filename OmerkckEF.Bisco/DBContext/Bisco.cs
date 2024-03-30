@@ -14,13 +14,7 @@ namespace OmerkckEF.Biscom.DBContext
         public DbConnectionStringBuilder ConnectionStringBuilder { get; set; }
         protected DbConnection? MyConnection { get; set; }
         private DBServer DBServerInfo { get; set; }
-        public string? DBSchemaName
-        {
-            get
-            {
-                return DBServerInfo?.DbSchema;
-            }
-        }
+        public string? DBSchemaName => DBServerInfo?.DbSchema;
         #endregion
 
         public Bisco(DBServer dbServerInfo)
@@ -55,21 +49,16 @@ namespace OmerkckEF.Biscom.DBContext
 
                 return true;
             }
-            catch// (DbException ex)
+            catch
             {
-                if (MyConnection != null)
-                {
-                    if (MyConnection.State == ConnectionState.Open)
-                        MyConnection.Close();
-                }
-
-                //Bisco_ErrorInfo = ex.ErrorCode switch
+                //throw new Exception(ex.ErrorCode switch
                 //{
                 //    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
                 //    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
                 //    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
                 //    _ => "Connection Error : " + ex.Message,
-                //};
+                //});
+                CloseConnection();
                 return false;
             }
         }
@@ -95,14 +84,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 return true;
             }
-            catch// (DbException ex)
+            catch
             {
-                if (MyConnection != null)
-                {
-                    if (MyConnection.State == ConnectionState.Open)
-                        await MyConnection.CloseAsync();
-                }
-
+                CloseConnectionAsync();
                 return false;
             }
         }
@@ -111,11 +95,8 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                if (MyConnection == null) return;
-                if (MyConnection.State != ConnectionState.Closed)
-                {
+                if (MyConnection != null && MyConnection.State != ConnectionState.Closed)
                     MyConnection.Close();
-                }
             }
             catch (Exception ex)
             {
@@ -126,12 +107,8 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                if (MyConnection == null) return;
-
-                if (MyConnection.State != ConnectionState.Closed)
-                {
+                if (MyConnection != null && MyConnection.State != ConnectionState.Closed)
                     MyConnection.CloseAsync();
-                }
             }
             catch (Exception ex)
             {
@@ -145,7 +122,7 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                DbCommand dbCommand = (DbCommand)DALFactory.IDbCommand();
+                var dbCommand = (DbCommand)DALFactory.IDbCommand();
                 dbCommand.Connection = MyConnection;
                 dbCommand.CommandText = queryString;
                 dbCommand.CommandType = commandType;
@@ -154,9 +131,15 @@ namespace OmerkckEF.Biscom.DBContext
                 {
                     foreach (KeyValuePair<string, object> param in parameters)
                     {
-                        DbParameter DbParam = dbCommand.CreateParameter();
+                        var DbParam = dbCommand.CreateParameter();
                         DbParam.ParameterName = param.Key;
                         DbParam.Value = param.Value ?? DBNull.Value;
+
+                        if (param.Value != null && !string.IsNullOrEmpty(param.Value.ToString()))
+                            DbParam.Value = param.Value;
+                        else
+                            DbParam.Value = DBNull.Value;
+
                         dbCommand.Parameters.Add(DbParam);
                     }
                 }
@@ -180,30 +163,27 @@ namespace OmerkckEF.Biscom.DBContext
                 if (!OpenConnection(schema)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
                 int exeResult = 0;
-                using (MyConnection)
+                if (transaction)
                 {
-                    if (transaction)
-                    {
-                        using var _transaction = MyConnection?.BeginTransaction();
-                        try
-                        {
-                            using var command = ExeCommand(queryString, parameters, commandType);
-
-                            command.Transaction = _transaction;
-                            exeResult = command.ExecuteNonQuery();
-                            _transaction?.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            _transaction?.Rollback();
-                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
-                        }
-                    }
-                    else
+                    using var _transaction = MyConnection?.BeginTransaction();
+                    try
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
+
+                        command.Transaction = _transaction;
                         exeResult = command.ExecuteNonQuery();
+                        _transaction?.Commit();
                     }
+                    catch (Exception ex)
+                    {
+                        _transaction?.Rollback();
+                        return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
+                    }
+                }
+                else
+                {
+                    using var command = ExeCommand(queryString, parameters, commandType);
+                    exeResult = command.ExecuteNonQuery();
                 }
                 return new Result<int> { IsSuccess = exeResult > 0, Message = exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
             }
@@ -214,42 +194,19 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public Result<object> RunScaler(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<object> RunScaler(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
-            return RunScaler(null, queryString, parameters, transaction, commandType);
+            return RunScaler(null, queryString, parameters, commandType);
         }
-        public Result<object> RunScaler(string? schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public Result<object> RunScaler(string? schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
                 if (!OpenConnection(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                object? exeResult = null;
-                using (MyConnection)
-                {
-                    if (transaction)
-                    {
-                        using var _transaction = MyConnection?.BeginTransaction();
-                        try
-                        {
-                            using var command = ExeCommand(queryString, parameters, commandType);
+                using var command = ExeCommand(queryString, parameters, commandType);
+                var exeResult = command.ExecuteScalar();
 
-                            command.Transaction = _transaction;
-                            exeResult = command.ExecuteScalar();
-                            _transaction?.Commit();
-                        }
-                        catch (Exception ex)
-                        {
-                            _transaction?.Rollback();
-                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
-                        }
-                    }
-                    else
-                    {
-                        using var command = ExeCommand(queryString, parameters, commandType);
-                        exeResult = command.ExecuteScalar();
-                    }
-                }
                 return new Result<object> { IsSuccess = true, Data = exeResult };
             }
             catch (Exception ex)
@@ -298,30 +255,27 @@ namespace OmerkckEF.Biscom.DBContext
                 if (!await OpenConnectionAsync(schema)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
                 int exeResult = 0;
-                using (MyConnection)
+                if (transaction)
                 {
-                    if (transaction)
-                    {
-                        using var _transaction = MyConnection?.BeginTransaction();
-                        try
-                        {
-                            using var command = ExeCommand(queryString, parameters, commandType);
-
-                            command.Transaction = _transaction;
-                            exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
-                            _transaction?.Commit();
-                        }
-                        catch(Exception ex)
-                        {
-                            _transaction?.RollbackAsync();
-                            return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
-                        }
-                    }
-                    else
+                    using var _transaction = MyConnection?.BeginTransaction();
+                    try
                     {
                         using var command = ExeCommand(queryString, parameters, commandType);
+
+                        command.Transaction = _transaction;
                         exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
+                        _transaction?.Commit();
                     }
+                    catch (Exception ex)
+                    {
+                        _transaction?.RollbackAsync();
+                        return new Result<int> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
+                    }
+                }
+                else
+                {
+                    using var command = ExeCommand(queryString, parameters, commandType);
+                    exeResult = Convert.ToInt32(await command.ExecuteNonQueryAsync());
                 }
                 return new Result<int> { IsSuccess = exeResult > 0, Message = exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
             }
@@ -332,42 +286,19 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public async Task<Result<object>> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<object>> RunScalerAsync(string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
-            return await RunScalerAsync(null, queryString, parameters, transaction, commandType);
+            return await RunScalerAsync(null, queryString, parameters, commandType);
         }
-        public async Task<Result<object>> RunScalerAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, bool transaction = false, CommandType commandType = CommandType.Text)
+        public async Task<Result<object>> RunScalerAsync(string? schema, string queryString, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text)
         {
             try
             {
                 if (!await OpenConnectionAsync(schema)) return new Result<object> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                object? exeResult = null;
-                using (MyConnection)
-                {
-                    if (transaction)
-                    {
-                        using var _transaction = MyConnection?.BeginTransaction();
-                        try
-                        {
-                            using var command = ExeCommand(queryString, parameters, commandType);
+                using var command = ExeCommand(queryString, parameters, commandType);
+                var exeResult = await command.ExecuteScalarAsync() ?? null;
 
-                            command.Transaction = _transaction;
-                            exeResult = await command.ExecuteScalarAsync() ?? null;
-                            _transaction?.Commit();
-                        }
-                        catch(Exception ex)
-                        {
-                            _transaction?.RollbackAsync();
-                            return new Result<object> { IsSuccess = false, Message = "Error: Rollback finished.\n" + ex.Message };
-                        }
-                    }
-                    else
-                    {
-                        using var command = ExeCommand(queryString, parameters, commandType);
-                        exeResult = await command.ExecuteScalarAsync() ?? null;
-                    }
-                }
                 return new Result<object> { IsSuccess = true, Data = exeResult };
             }
             catch (Exception ex)
@@ -419,9 +350,7 @@ namespace OmerkckEF.Biscom.DBContext
                 {
                     // Managed resources are released here.
                     MyConnection?.Dispose();
-                    MyConnection?.Close();
-                    MyConnection = null;
-                    DBServerInfo = DBServer.DBServerInfo;
+                    DBServerInfo = DBServer.DBServerInfo ?? new DBServer();
                 }
 
                 // Unmanaged resources are released here.
