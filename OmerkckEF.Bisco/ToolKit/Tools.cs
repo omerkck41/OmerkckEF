@@ -8,7 +8,7 @@ using System.Security;
 
 namespace OmerkckEF.Biscom.ToolKit
 {
-	public static class Tools
+    public static class Tools
     {
         /// <summary>
         /// DataReader Extensions
@@ -30,40 +30,40 @@ namespace OmerkckEF.Biscom.ToolKit
 
 
 
-		/// <summary>
-		/// Attachments for Entity use
-		/// </summary>
-		#region Entity ToolKit
+        /// <summary>
+        /// Attachments for Entity use
+        /// </summary>
+        #region Entity ToolKit
 
-		/// <summary>
-		/// type and content control of properties
-		/// </summary>
-		/// <param name="Prop"></param>
-		/// <param name="Entity"></param>
-		/// <param name="Value"></param>
-		public static void ParsePrimitive(PropertyInfo prop, object entity, object value)
+        /// <summary>
+        /// type and content control of properties
+        /// </summary>
+        /// <param name="Prop"></param>
+        /// <param name="Entity"></param>
+        /// <param name="Value"></param>
+        public static void ParsePrimitive(PropertyInfo prop, object entity, object value)
         {
-			if (prop == null || entity == null || (value == null || value == DBNull.Value)) return;
+            if (prop == null || entity == null || (value == null || value == DBNull.Value)) return;
 
-			switch (prop.PropertyType)
-			{
-				case Type t when t == typeof(string):
-					prop.SetValue(entity, value.ToString()?.Trim());
-					break;
+            switch (prop.PropertyType)
+            {
+                case Type t when t == typeof(string):
+                    prop.SetValue(entity, value.ToString()?.Trim());
+                    break;
 
-				case Type t when t == typeof(char) || t == typeof(char?):
-					prop.SetValue(entity, char.Parse(value.ToString() ?? ""));
-					break;
+                case Type t when t == typeof(char) || t == typeof(char?):
+                    prop.SetValue(entity, char.Parse(value.ToString() ?? ""));
+                    break;
 
-				case Type t when t == typeof(int) || t == typeof(int?):
-					prop.SetValue(entity, int.Parse(value.ToString() ?? ""));
-					break;
+                case Type t when t == typeof(int) || t == typeof(int?):
+                    prop.SetValue(entity, int.Parse(value.ToString() ?? ""));
+                    break;
 
                 case Type t when t == typeof(bool) || t == typeof(bool?):
-					if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
-						prop.SetValue(entity, parsedBoolValue);
-					else if (int.TryParse(value.ToString(), out int parsedIntValue))
-						prop.SetValue(entity, parsedIntValue != 0);
+                    if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
+                        prop.SetValue(entity, parsedBoolValue);
+                    else if (int.TryParse(value.ToString(), out int parsedIntValue))
+                        prop.SetValue(entity, parsedIntValue != 0);
                     //else
                     //{
                     //    throw new InvalidCastException($"Cannot convert '{value}' to {prop.PropertyType}");
@@ -71,45 +71,45 @@ namespace OmerkckEF.Biscom.ToolKit
                     break;
 
                 case Type t when t == typeof(DateTime) || t == typeof(DateTime?):
-					prop.SetValue(entity, DateTime.Parse(value.ToString() ?? ""));
-					break;
+                    prop.SetValue(entity, DateTime.Parse(value.ToString() ?? ""));
+                    break;
 
-				case Type t when t == typeof(decimal) || t == typeof(decimal?):
-					prop.SetValue(entity, decimal.Parse(value.ToString() ?? ""));
-					break;
+                case Type t when t == typeof(decimal) || t == typeof(decimal?):
+                    prop.SetValue(entity, decimal.Parse(value.ToString() ?? ""));
+                    break;
 
-				case Type t when t == typeof(byte[]):
-					if (value is byte[] byteArray)
-						prop.SetValue(entity, byteArray);
-					break;
+                case Type t when t == typeof(byte[]):
+                    if (value is byte[] byteArray)
+                        prop.SetValue(entity, byteArray);
+                    break;
 
-				default:
-					throw new NotSupportedException($"Type {prop.PropertyType} is not supported");
-			}			
-		}
+                default:
+                    throw new NotSupportedException($"Type {prop.PropertyType} is not supported");
+            }
+        }
 
-		/// <summary>
-		/// Listing Properties by AttirbuteType
-		/// </summary>
-		/// <param name="ClassType"></param>
-		/// <param name="AttirbuteType"></param>
-		/// <param name="IsKeyAttirbute"></param>
-		/// <returns></returns>
-		public static IEnumerable<PropertyInfo> GetProperties(Type ClassType, Type AttirbuteType, bool IsKeyAttirbute = true)
-		{
-			if (ClassType == null) return new List<PropertyInfo>();
-			if (AttirbuteType == null) return ClassType.GetProperties();
+        /// <summary>
+        /// Listing Properties by AttirbuteType
+        /// </summary>
+        /// <param name="ClassType"></param>
+        /// <param name="AttirbuteType"></param>
+        /// <param name="IsKeyAttirbute"></param>
+        /// <returns></returns>
+        public static IEnumerable<PropertyInfo> GetProperties(Type ClassType, Type AttirbuteType, bool IsKeyAttirbute = true)
+        {
+            if (ClassType == null) return new List<PropertyInfo>();
+            if (AttirbuteType == null) return ClassType.GetProperties();
 
-			return ClassType.GetProperties().Where(x => IsKeyAttirbute ? x.GetCustomAttributes(AttirbuteType, true).Any()
-																	   : x.GetCustomAttributes(AttirbuteType, true).Any() && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any());
-		}
+            return ClassType.GetProperties().Where(x => IsKeyAttirbute ? x.GetCustomAttributes(AttirbuteType, true).Any()
+                                                                       : x.GetCustomAttributes(AttirbuteType, true).Any() && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any());
+        }
         public static object GetKeyAttribute<T>(this T obj) where T : class
-		{
+        {
             return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
                                             .Select(p => p.Name).FirstOrDefault()!;
-		}
-		public static object? GetEntityValue<T, TAttribute>(this T entity, string propertyName = null) where T : class where TAttribute : class
-		{
+        }
+        public static object? GetEntityValue<T, TAttribute>(this T entity, string propertyName = null) where T : class where TAttribute : class
+        {
             PropertyInfo? property;
 
             if (!string.IsNullOrEmpty(propertyName))
@@ -132,34 +132,34 @@ namespace OmerkckEF.Biscom.ToolKit
 
             return null;
         }
-		private static string GetColumnNames<T>(T entity) where T : class
-		{
-			var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-				       .Where(x => x.GetValue(entity) != null)
-				       .Select(x => x.Name);
-
-			return $"{string.Join(", ", keys)}";
-		}
-		private static string GetParameterNames<T>(T entity, int RowCount = -1) where T : class
-		{
+        private static string GetColumnNames<T>(T entity) where T : class
+        {
             var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
                        .Where(x => x.GetValue(entity) != null)
-					   .Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
+                       .Select(x => x.Name);
 
-			return $"{string.Join(", ", keys)}";
-		}
-		private static string GetUpdateSetClause<T>(T entity) where T : class
-		{
+            return $"{string.Join(", ", keys)}";
+        }
+        private static string GetParameterNames<T>(T entity, int RowCount = -1) where T : class
+        {
             var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
-				       .Where(x => x.GetValue(entity) != null)
-				       .Select(p => $"{p.Name} = @{p.Name}");
+                       .Where(x => x.GetValue(entity) != null)
+                       .Select(x => RowCount >= 0 ? $"@{RowCount + x.Name}" : $"@{x.Name}");
 
-			return $"{string.Join(", ", keys)}";
-		}
+            return $"{string.Join(", ", keys)}";
+        }
+        private static string GetUpdateSetClause<T>(T entity) where T : class
+        {
+            var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
+                       .Where(x => x.GetValue(entity) != null)
+                       .Select(p => $"{p.Name} = @{p.Name}");
+
+            return $"{string.Join(", ", keys)}";
+        }
 
 
         public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
-        {            
+        {
             try
             {
                 Dictionary<string, object> dict = GetDbParameters<T>(entity);
@@ -179,7 +179,7 @@ namespace OmerkckEF.Biscom.ToolKit
             {
                 Dictionary<string, object> dict = GetDbParametersList<T>(list);
 
-				var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
+                var propertyInfos = GetProperties(typeof(T), typeof(DataNameAttribute), false);
 
                 //var keys = list.SelectMany((item, index) =>
                 //                                propertyInfos.Where(p => p.GetValue(item) != null)
@@ -194,7 +194,8 @@ namespace OmerkckEF.Biscom.ToolKit
 
                 var keys = propertyInfos.Select(p => p.Name);
 
-                var valuesList = list.Select((item, index) => {
+                var valuesList = list.Select((item, index) =>
+                {
                     var validProperties = propertyInfos.Where(p => p.GetValue(item) != null);
                     var values = keys.Select(key => validProperties.Any(p => p.Name == key) ? $"@{index}{key}" : "NULL");
                     return "(" + string.Join(", ", values) + ")";
@@ -208,7 +209,7 @@ namespace OmerkckEF.Biscom.ToolKit
             catch (Exception)
             {
                 return null;
-            }            
+            }
         }
         public static Tuple<string, Dictionary<string, object>>? GetUpdateColmAndParams<T>(T entity, IEnumerable<string> fields) where T : class
         {
@@ -216,10 +217,10 @@ namespace OmerkckEF.Biscom.ToolKit
             {
                 Dictionary<string, object> dict = GetDbParameters<T>(entity, fields);
 
-				string editColm = GetUpdateSetClause<T>(entity);
+                string editColm = GetUpdateSetClause<T>(entity);
 
-				return new Tuple<string, Dictionary<string, object>>(editColm, dict);
-			}
+                return new Tuple<string, Dictionary<string, object>>(editColm, dict);
+            }
             catch
             {
                 return null;
@@ -227,121 +228,121 @@ namespace OmerkckEF.Biscom.ToolKit
         }
 
 
-		public static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
-		{
-			Dictionary<string, object> dict = new();
-			try
-			{
-				dict = GetProperties(typeof(T), typeof(DataNameAttribute))
-					   .Where(x => x.GetValue(entity) != null && ((fields?.Contains(x.Name) ?? true) || x.GetCustomAttributes(typeof(KeyAttribute), true).Any()))
-					   .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
-					   .ToDictionary(x => x.Key, x => x.Value);
+        public static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
+        {
+            Dictionary<string, object> dict = new();
+            try
+            {
+                dict = GetProperties(typeof(T), typeof(DataNameAttribute))
+                       .Where(x => x.GetValue(entity) != null && ((fields?.Contains(x.Name) ?? true) || x.GetCustomAttributes(typeof(KeyAttribute), true).Any()))
+                       .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
+                       .ToDictionary(x => x.Key, x => x.Value);
 
-				return dict;
-			}
-			catch
-			{
-				return dict;
-			}
-		}
-		public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
-		{
-            return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute),false)
+                return dict;
+            }
+            catch
+            {
+                return dict;
+            }
+        }
+        public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
+        {
+            return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute), false)
                     .Where(x => x.GetValue(item) != null)
                     .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
                     .ToDictionary(x => x.Key, x => x.Value);
         }
 
 
-		public static List<T> ToList<T>(this DataTable dt) where T : class
-		{
-			try
-			{
-				Type type = typeof(T);
-				List<T> list = new();
-
-				PropertyInfo[] properties = type.GetProperties();
-				foreach (DataRow dr in dt.Rows)
-				{
-					T obj = Activator.CreateInstance<T>();
-					foreach (PropertyInfo pi in properties)
-					{
-						if (dt.Columns.Contains(pi.Name))
-						{
-							object value = dr[pi.Name];
-							if (value != DBNull.Value)
-							{
-								if (Nullable.GetUnderlyingType(pi.PropertyType) != null)
-									pi.SetValue(obj, Convert.ChangeType(value, Nullable.GetUnderlyingType(pi.PropertyType) ?? pi.PropertyType));
-								else
-									pi.SetValue(obj, Convert.ChangeType(value, pi.PropertyType));
-							}
-						}
-					}
-					list.Add(obj);
-				}
-				return list;
-			}
-			catch (Exception ex)
-			{
-				throw new Exception("Executing DataTable to Class Error: ", ex);
-			}
-		}
-		public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
-		{
-			var pairs = keys.Select(key => string.Format(format, key)).ToList();
-			return string.Join(separator, pairs);
-		}
-
-
-		public static List<string> GetChangedFields<T>(T newT, T oldT) where T : class
-		{
+        public static List<T> ToList<T>(this DataTable dt) where T : class
+        {
             try
             {
-				if (newT == null || oldT == null) return new();
+                Type type = typeof(T);
+                List<T> list = new();
 
-				List<string> fields = new();
+                PropertyInfo[] properties = type.GetProperties();
+                foreach (DataRow dr in dt.Rows)
+                {
+                    T obj = Activator.CreateInstance<T>();
+                    foreach (PropertyInfo pi in properties)
+                    {
+                        if (dt.Columns.Contains(pi.Name))
+                        {
+                            object value = dr[pi.Name];
+                            if (value != DBNull.Value)
+                            {
+                                if (Nullable.GetUnderlyingType(pi.PropertyType) != null)
+                                    pi.SetValue(obj, Convert.ChangeType(value, Nullable.GetUnderlyingType(pi.PropertyType) ?? pi.PropertyType));
+                                else
+                                    pi.SetValue(obj, Convert.ChangeType(value, pi.PropertyType));
+                            }
+                        }
+                    }
+                    list.Add(obj);
+                }
+                return list;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Executing DataTable to Class Error: ", ex);
+            }
+        }
+        public static string GetIEnumerablePairs(IEnumerable<object> keys, string format = "{0}", string separator = ", ")
+        {
+            var pairs = keys.Select(key => string.Format(format, key)).ToList();
+            return string.Join(separator, pairs);
+        }
 
-				var propertiesWithAttribute = newT.GetType()
-												  .GetProperties()
-												  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-												  .ToList();
 
-				foreach (var prop in propertiesWithAttribute)
-				{
-					if (prop.PropertyType.Namespace == "System.Collections.Generic") continue;
+        public static List<string> GetChangedFields<T>(T newT, T oldT) where T : class
+        {
+            try
+            {
+                if (newT == null || oldT == null) return new();
 
-					object oldValue = prop.GetValue(oldT) ?? string.Empty;
-					object newValue = prop.GetValue(newT) ?? string.Empty;
+                List<string> fields = new();
 
-					if (prop.PropertyType == typeof(byte[]))
-					{
-						byte[] oldBytes = oldValue as byte[] ?? new byte[] { 0 };
-						byte[] newBytes = newValue as byte[] ?? new byte[] { 0 };
+                var propertiesWithAttribute = newT.GetType()
+                                                  .GetProperties()
+                                                  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                                  .ToList();
 
-						if (!oldBytes.SequenceEqual(newBytes))
-							fields.Add(prop.Name);
+                foreach (var prop in propertiesWithAttribute)
+                {
+                    if (prop.PropertyType.Namespace == "System.Collections.Generic") continue;
 
-					}
-					else if (prop.PropertyType == typeof(SecureString))
-					{ 
-						var oldString = ((SecureString)oldValue).ConvertToUnSecurestring();
-						var newString = ((SecureString)newValue).ConvertToUnSecurestring();
+                    object oldValue = prop.GetValue(oldT) ?? string.Empty;
+                    object newValue = prop.GetValue(newT) ?? string.Empty;
 
-						if(!oldString.Equals(newString))
-							fields.Add(prop.Name);
-					}
-					else if (!newValue.Equals(oldValue))
-						fields.Add(prop.Name);
-				}
+                    if (prop.PropertyType == typeof(byte[]))
+                    {
+                        byte[] oldBytes = oldValue as byte[] ?? new byte[] { 0 };
+                        byte[] newBytes = newValue as byte[] ?? new byte[] { 0 };
 
-				return fields;
-			}
+                        if (!oldBytes.SequenceEqual(newBytes))
+                            fields.Add(prop.Name);
+
+                    }
+                    else if (prop.PropertyType == typeof(SecureString))
+                    {
+                        var oldString = ((SecureString)oldValue).ConvertToUnSecurestring();
+                        var newString = ((SecureString)newValue).ConvertToUnSecurestring();
+
+                        if (!oldString.Equals(newString))
+                            fields.Add(prop.Name);
+                    }
+                    else if (!newValue.Equals(oldValue))
+                        fields.Add(prop.Name);
+                }
+
+                return fields;
+            }
             catch
             {
                 return new();
             }
-		}
+        }
         public static SecureString ConvertToSecureString(this string value)
         {
             var secureString = new SecureString();
@@ -363,25 +364,25 @@ namespace OmerkckEF.Biscom.ToolKit
             try
             {
                 string RequiredError = string.Empty;
-				string UniqueError = string.Empty;
+                string UniqueError = string.Empty;
                 string MaxLengthError = string.Empty;
                 string IdentityName = string.Empty;
-				var IdentValue = 0;
+                var IdentValue = 0;
                 Dictionary<string, object> dict = new();
 
-				Type type = Entity.GetType();
+                Type type = Entity.GetType();
 
 
-				///Controls of Required fields
-				var required = type.GetProperties()
-	                                               .Where(x => x.GetCustomAttribute<RequiredAttribute>() is RequiredAttribute attribute &&
-				                                               (x.GetValue(Entity) is null || string.IsNullOrEmpty(x.GetValue(Entity)!.ToString())))
-	                                               .Select(s => s.Name + " = " + s.GetCustomAttribute<RequiredAttribute>()?.ErrorMessage).ToArray();
+                ///Controls of Required fields
+                var required = type.GetProperties()
+                                                   .Where(x => x.GetCustomAttribute<RequiredAttribute>() is RequiredAttribute attribute &&
+                                                               (x.GetValue(Entity) is null || string.IsNullOrEmpty(x.GetValue(Entity)!.ToString())))
+                                                   .Select(s => s.Name + " = " + s.GetCustomAttribute<RequiredAttribute>()?.ErrorMessage).ToArray();
 
                 RequiredError = required.Length > 0 ? $"- {string.Join("\n- ", required)}\n{required.Length} column(s) cannot be null!!!" : "";
 
-                
-				///Controls of MaxLength fields
+
+                ///Controls of MaxLength fields
                 type.GetProperties()
                     .Where(x => x.GetCustomAttribute(typeof(MaxLengthAttribute)) != null && x.GetValue(Entity) is string value && value.Length > x.GetCustomAttribute<MaxLengthAttribute>()!.Length)
                     .Select(s => s.Name + " = " + s.GetCustomAttribute<MaxLengthAttribute>()?.ErrorMessage).ToList()
@@ -398,13 +399,13 @@ namespace OmerkckEF.Biscom.ToolKit
                                     .Where(x => x.GetCustomAttributes(true).Any(a => a is UniqueAttribute || a is KeyAttribute) && x.GetValue(Entity) is not null).ToList()
                                     .ForEach(f =>
                                     {
-										var colmValue = f.GetValue(Entity) ?? string.Empty;
+                                        var colmValue = f.GetValue(Entity) ?? string.Empty;
 
-										if (f.GetCustomAttribute(typeof(KeyAttribute)) != null)
-										{
-											IdentityName = f.Name;
-											IdentValue = (int)f.GetValue(Entity)!;
-										}
+                                        if (f.GetCustomAttribute(typeof(KeyAttribute)) != null)
+                                        {
+                                            IdentityName = f.Name;
+                                            IdentValue = (int)f.GetValue(Entity)!;
+                                        }
 
                                         if (f.GetCustomAttribute(typeof(UniqueAttribute)) != null)
                                         {
@@ -414,29 +415,32 @@ namespace OmerkckEF.Biscom.ToolKit
                                             var UniqueMsg = f.GetCustomAttribute<UniqueAttribute>()?.ErrorMessage ?? null;
 
                                             dict.Add($"@{f.Name}", colmValue);
-                                            var ctrl = bisco.RunScaler(sqlQuery, dict).Data;
-											
-                                            if (!string.IsNullOrEmpty(UniqueMsg))
-                                                UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : null;
-                                            else
-                                                UniqueError += ctrl != null ? "- " + f.Name + " : " + colmValue + "\n" : null;
-										}
-									});
-				UniqueError += !string.IsNullOrEmpty(UniqueError) ? $"{UniqueError.Split('\n').Length-1} column(s) must be Unique. The entered values are available.!!!" : null;
+                                            var ctrl = bisco.RunScaler(sqlQuery, dict);
 
-								
+                                            if (ctrl.IsSuccess)
+                                            {
+                                                if (!string.IsNullOrEmpty(UniqueMsg))
+                                                    UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : null;
+                                                else
+                                                    UniqueError += ctrl.Data != null ? "- " + f.Name + " : " + colmValue + "\n" : null;
+                                            }
+                                        }
+                                    });
+                UniqueError += !string.IsNullOrEmpty(UniqueError) ? $"{UniqueError.Split('\n').Length - 1} column(s) must be Unique. The entered values are available.!!!" : null;
+
+
                 return RequiredError += !string.IsNullOrEmpty(UniqueError) || !string.IsNullOrEmpty(MaxLengthError)
-										? (!string.IsNullOrEmpty(RequiredError) ? "\n<-------->\n" + 
-																	UniqueError + "\n<-------->\n" + 
-												   MaxLengthError : UniqueError + "\n<-------->\n" + MaxLengthError)
-										: null;
+                                        ? (!string.IsNullOrEmpty(RequiredError) ? "\n<-------->\n" +
+                                                                    UniqueError + "\n<-------->\n" +
+                                                   MaxLengthError : UniqueError + "\n<-------->\n" + MaxLengthError)
+                                        : null;
 
             }
             catch
             {
                 return "Syntax Error";
             }
-		}
-		#endregion
-	}
+        }
+        #endregion
+    }
 }

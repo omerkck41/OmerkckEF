@@ -1,17 +1,12 @@
 ﻿namespace OmerkckEF.Biscom.ToolKit
 {
-	public class Result<T>
-	{
-        public Result()
-        {
-            this.IsSuccess = false;
-			this.Data = Activator.CreateInstance<T>();
-			this.Message = "Great, Everything is fine!!!";
-        }
+    public class Result<T>
+    {
+        public Result() { }
 
-        public bool IsSuccess { get; set; }
-		public T? Data { get; set; }
-		public string? Message { get; set; }
+        public bool IsSuccess { get; set; } = false;
+        public T? Data { get; set; } = default!;
+        public string? Message { get; set; } = "Great, Everything is fine!!!";
 
-	}
+    }
 }
