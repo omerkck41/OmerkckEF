@@ -10,8 +10,8 @@ namespace OmerkckEF.Biscom.DBContext
     public class Bisco : IDisposable
     {
         #region Properties
-        private IDALFactory DALFactory { get; set; }
-        public DbConnectionStringBuilder ConnectionStringBuilder { get; set; }
+        protected IDALFactory DALFactory { get; set; }
+        protected DbConnectionStringBuilder ConnectionStringBuilder { get; set; }
         protected DbConnection? MyConnection { get; set; }
         private DBServer DBServerInfo { get; set; }
         public string? DBSchemaName => DBServerInfo?.DbSchema;

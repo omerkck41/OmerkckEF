@@ -11,10 +11,15 @@ namespace OmerkckEF.Biscom.DBContext
 {
     public class EntityContext : Bisco
     {
+        private readonly DBServer dbServerInfo;
+
         private string? QueryString { get; set; }
 
 
-        public EntityContext(DBServer dbServerInfo) : base(dbServerInfo) { }
+        public EntityContext(DBServer dbServerInfo) : base(dbServerInfo)
+        {
+            this.dbServerInfo = dbServerInfo;
+        }
 
 
         #region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
@@ -824,6 +829,23 @@ namespace OmerkckEF.Biscom.DBContext
 
 
         #region CUD Table
+        public Result<bool> CreateDatabase(string? databaseName = null)
+        {
+            databaseName ??= DBSchemaName;
+            string query = "CREATE DATABASE IF NOT EXISTS " + databaseName;
+
+            dbServerInfo.DbSchema = null;
+
+            ConnectionStringBuilder = DALFactory.IDbConnectionStringBuilder(dbServerInfo);
+
+
+            //Create Database in MySql
+            var exResult = RunNonQuery(databaseName, query);
+            return !exResult.IsSuccess
+                   ? new Result<bool> { IsSuccess = false, Message = "Database CreateTable RunNonQuery error.\n" + exResult.Message }
+                   : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+        }
+
         /// <summary>
         /// Creates a new table in the specified schema (defaults to the current database schema).
         /// </summary>
