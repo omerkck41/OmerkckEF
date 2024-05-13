@@ -162,7 +162,7 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (!OpenConnection(schema)) return new Result<int> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                int exeResult = 0;
+                int exeResult = -1;
                 if (transaction)
                 {
                     using var _transaction = MyConnection?.BeginTransaction();
@@ -185,12 +185,12 @@ namespace OmerkckEF.Biscom.DBContext
                     using var command = ExeCommand(queryString, parameters, commandType);
                     exeResult = command.ExecuteNonQuery();
                 }
-                return new Result<int> { IsSuccess = exeResult > 0, Message = exeResult <= 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
+                return new Result<int> { IsSuccess = exeResult >= 0, Message = exeResult < 0 ? "Error : ExecuteNonQueryAsync Process" : "", Data = exeResult };
             }
             catch (Exception ex)
             {
                 CloseConnection();
-                return new Result<int> { IsSuccess = false, Message = "Executing NonQuery Error: " + ex.Message };
+                return new Result<int> { IsSuccess = false, Data = -1, Message = "Executing NonQuery Error: " + ex.Message };
             }
         }
 

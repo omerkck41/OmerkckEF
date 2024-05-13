@@ -3,6 +3,7 @@ using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.ToolKit;
 using System.Data;
 using System.Linq.Expressions;
+using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.Repositories
 {
@@ -74,6 +75,62 @@ namespace OmerkckEF.Biscom.Repositories
         public virtual Result<bool> Delete(string? schema, T entity, bool transaction = false) => DBContext.DoMapDelete(schema, entity, transaction);
         public virtual Result<bool> Delete(IEnumerable<T> entityList, bool transaction = false) => DBContext.DoMapDeleteAll(entityList, transaction);
         public virtual Result<bool> Delete(string? schema, IEnumerable<T> entityList, bool transaction = false) => DBContext.DoMapDeleteAll(schema, entityList, transaction);
+
+
+        //Table CRUD
+        /// <summary>
+        /// Creates a new table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the creation was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = CreateTable<YourTableType>("your_schema_name");
+        /// </example>
+        public virtual Result<bool> CreateTable() => DBContext.CreateTable<T>();
+        /// <summary>
+        /// Drops a table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the deletion was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = DropTable<YourTableType>("your_schema_name");
+        /// </example>
+        public virtual Result<bool> DropTable() => DBContext.DropTable<T>();
+        /// <summary>
+        /// Updates a table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the update was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = UpdateTable<YourTableType>("your_schema_name");
+        /// </example>
+        public virtual Result<bool> UpdateTable() => DBContext.UpdateTable<T>();
+        /// <summary>
+        /// Removes a column from a table in the specified schema (defaults to the current database schema), or removes all columns.
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="columnName">The name of the column to remove (optional). If left empty, removes all columns.</param>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the removal was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = RemoveTableColumn<YourTableType>("column_name", "your_schema_name");
+        /// </example>
+        public virtual Result<bool> RemoveTableColumn(string? columnName = null) => DBContext.RemoveTableColumn<T>(columnName);
+        /// <summary>
+        /// Adds an attribute to a column in the specified table schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="attribute">The attribute to add to the column.</param>
+        /// <param name="propertyName">The name of the property representing the column.</param>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the addition was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = AddAttributeToTableColumn<YourTableType>(TableColumnAttribute.PrimaryKey, "column_name", "your_schema_name");
+        /// </example>
+        public virtual Result<bool> AddAttributeToTableColumn(TableColumnAttribute attribute, string propertyName) => DBContext.AddAttributeToTableColumn<T>(attribute, propertyName);
 
         #region IDisposable Members
         public void Dispose()

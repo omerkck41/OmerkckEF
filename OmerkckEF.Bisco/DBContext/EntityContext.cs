@@ -1,8 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using OmerkckEF.Biscom.ToolKit;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
-using OmerkckEF.Biscom.ToolKit;
+using System.Text;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 
@@ -819,6 +820,290 @@ namespace OmerkckEF.Biscom.DBContext
 
         #endregion
 
+        #endregion
+
+
+        #region CUD Table
+        /// <summary>
+        /// Creates a new table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the creation was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = CreateTable<YourTableType>("your_schema_name");
+        /// </example>
+        public Result<bool> CreateTable<T>(string? schema = null) where T : class
+        {
+            try
+            {
+                StringBuilder script = new StringBuilder();
+                StringBuilder strUniq = new StringBuilder();
+
+                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
+
+                //We assigned unique by finding KeyAttribute and Primary Key
+                var keyName = typeof(T).GetProperties()
+                                       .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                       .Select(p => p.Name).FirstOrDefault()!;
+
+                //strUniq.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`),");
+                //strUniq.AppendLine($"\tUNIQUE INDEX `{keyName}_UNIQUE` (`{keyName}` ASC) VISIBLE,");
+
+                GetProperties(typeof(T), typeof(DataNameAttribute), true).ToList().ForEach(property =>
+                {
+                    string columnType = GetMySQLDataType(property);
+                    string constraints = Tools.GetConstraints(property);
+
+                    script.AppendLine($"\t{property.Name} {columnType} {constraints},");
+
+                    //if (constraints.Contains("UNIQUE"))
+                    //    strUniq.AppendLine($"\tUNIQUE INDEX `{property.Name}_UNIQUE` (`{property.Name}` ASC) VISIBLE,");
+                });
+
+                //strUniq.Remove(strUniq.Length - 3, 2);
+                //script.AppendLine("\n" + strUniq.ToString());
+
+                script.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`)");
+                script.AppendLine(");");
+
+                //Create Table in MySql
+                var exResult = RunNonQuery(schema, script.ToString());
+                return !exResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database CreateTable RunNonQuery error.\n" + exResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing CreateTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
+        /// <summary>
+        /// Drops a table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the deletion was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = DropTable<YourTableType>("your_schema_name");
+        /// </example>
+        public Result<bool> DropTable<T>(string? schema = null) where T : class
+        {
+            try
+            {
+                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+
+                //Drop Table in MySql
+                var exResult = RunNonQuery(schema, $"DROP TABLE IF EXISTS {tableName};");
+                return !exResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database DropTable RunNonQuery error.\n" + exResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing DropTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
+        /// <summary>
+        /// Updates a table in the specified schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the update was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = UpdateTable<YourTableType>("your_schema_name");
+        /// </example>
+        public Result<bool> UpdateTable<T>(string? schema = null) where T : class
+        {
+            try
+            {
+                StringBuilder script = new StringBuilder();
+                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                script.AppendLine($"ALTER TABLE {tableName}");
+
+                List<string> existingColumns = new List<string>();
+
+                if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+                using var command = ExeCommand($"DESCRIBE {tableName};");
+                var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+                using (reader)
+                {
+                    while (reader.Read())
+                    {
+                        existingColumns.Add(reader.GetString(0)); // Assuming column names are in the first column
+                    }
+                }
+
+                var properties = typeof(T).GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(DataNameAttribute)));
+
+                foreach (var property in properties)
+                {
+                    string columnName = property.Name;
+                    if (!existingColumns.Contains(columnName))
+                    {
+                        // Add the new column
+                        string columnType = GetMySQLDataType(property);
+                        string constraints = GetConstraints(property);
+                        script.AppendLine($"ADD COLUMN {columnName} {columnType} {constraints},");
+                    }
+                }
+
+                // Remove the last comma from the script
+                script.Remove(script.Length - 3, 2);
+                script.AppendLine(";");
+
+                //Update Table in MySql
+                var exResult = RunNonQuery(schema, script.ToString());
+                return !exResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database UpdateTable RunNonQuery error.\n" + exResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing UpdateTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
+        /// <summary>
+        /// Removes a column from a table in the specified schema (defaults to the current database schema), or removes all columns.
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="columnName">The name of the column to remove (optional). If left empty, removes all columns.</param>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the removal was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = RemoveTableColumn<YourTableType>("column_name", "your_schema_name");
+        /// </example>
+        public Result<bool> RemoveTableColumn<T>(string? columnName = null, string? schema = null) where T : class
+        {
+            try
+            {
+                StringBuilder script = new StringBuilder();
+                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                script.AppendLine($"ALTER TABLE {tableName}");
+
+                if (string.IsNullOrEmpty(columnName))
+                {
+                    List<string> existingColumns = new List<string>();
+
+                    if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+                    using var command = ExeCommand($"DESCRIBE {tableName};");
+                    var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+                    using (reader)
+                    {
+                        while (reader.Read())
+                        {
+                            existingColumns.Add(reader.GetString(0)); // Assuming column names are in the first column
+                        }
+                    }
+
+                    var properties = typeof(T).GetProperties().Where(prop => Attribute.IsDefined(prop, typeof(DataNameAttribute)));
+
+                    foreach (var existingColumn in existingColumns)
+                    {
+                        if (!properties.Any(prop => string.Equals(prop.Name, existingColumn, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            // Remove the column not present in class
+                            script.AppendLine($"DROP COLUMN {existingColumn},");
+                        }
+                    }
+
+                    // Remove the last comma from the script
+                    script.Remove(script.Length - 3, 2);
+                    script.AppendLine(";");
+                }
+                else
+                {
+                    script.AppendLine($"DROP COLUMN {columnName};");
+                }
+
+                //Remove Table column in MySql
+                var exResult = RunNonQuery(schema, script.ToString());
+                return !exResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database RemoveTableColumn RunNonQuery error.\n" + exResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing RemoveTableColumn Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
+        /// <summary>
+        /// Adds an attribute to a column in the specified table schema (defaults to the current database schema).
+        /// </summary>
+        /// <typeparam name="T">The type of the table.</typeparam>
+        /// <param name="attribute">The attribute to add to the column.</param>
+        /// <param name="propertyName">The name of the property representing the column.</param>
+        /// <param name="schema">The schema of the table (optional). Defaults to the current database schema.</param>
+        /// <returns>A result indicating whether the addition was successful and providing information about the operation.</returns>
+        /// <example>
+        /// var result = AddAttributeToTableColumn<YourTableType>(TableColumnAttribute.PrimaryKey, "column_name", "your_schema_name");
+        /// </example>
+        public Result<bool> AddAttributeToTableColumn<T>(TableColumnAttribute attribute, string propertyName, string? schema = null) where T : class
+        {
+            try
+            {
+                string attributeName = string.Empty;
+                if ((int)attribute == 0)
+                    attributeName = "Primary Key";
+                else if ((int)attribute == 1)
+                    attributeName = "Not Null";
+                else if ((int)attribute == 5)
+                    attributeName = "Zero Fill";
+                else if ((int)attribute == 6)
+                    attributeName = "Auto Increment";
+
+                StringBuilder script = new StringBuilder();
+                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                script.AppendLine($"ALTER TABLE {tableName}");
+
+                bool columnFound = false;
+
+                if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
+
+                using var command = ExeCommand($"DESCRIBE {tableName};");
+                var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
+                using (reader)
+                {
+                    while (reader.Read())
+                    {
+                        string columnName = reader.GetString(0); // Assuming column names are in the first column
+                        if (columnName.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            columnFound = true;
+                            // Add the new attribute to the existing column
+                            script.AppendLine($"MODIFY COLUMN {propertyName} {reader.GetString(1)} {attributeName},");
+                            break;
+                        }
+                    }
+                }
+
+                if (!columnFound)
+                {
+                    return new Result<bool> { IsSuccess = false, Message = $"Column '{propertyName}' does not exist in table '{tableName}'." };
+                }
+
+                script.Remove(script.Length - 3, 2);
+                script.AppendLine(";");
+
+                //Remove Table column in MySql
+                var exResult = RunNonQuery(schema, script.ToString());
+                return !exResult.IsSuccess
+                       ? new Result<bool> { IsSuccess = false, Message = "Database AddAttributeToTableColumn RunNonQuery error.\n" + exResult.Message }
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+            }
+            catch (Exception ex)
+            {
+                CloseConnection();
+                return new Result<bool> { IsSuccess = false, Message = $"Executing AddAttributeToTableColumn Class Error: {ex.GetType().FullName}: {ex.Message}" };
+            }
+        }
         #endregion
     }
 }

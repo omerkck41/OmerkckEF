@@ -3,7 +3,7 @@
     public class Enums
     {
         public enum DataBaseType
-        { 
+        {
             None = 0,
             MySql = 1,
             Sql = 2,
@@ -15,6 +15,18 @@
         {
             PrimaryTable = 0,
             CompositeTable
+        }
+
+        public enum TableColumnAttribute
+        {
+            PrimaryKey = 0,
+            NotNull = 1,
+            Unique,
+            Binary,
+            Unsigned,
+            ZeroFill,
+            AutoIncrement,
+            Generated
         }
     }
 }

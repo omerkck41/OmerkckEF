@@ -157,6 +157,56 @@ namespace OmerkckEF.Biscom.ToolKit
             return $"{string.Join(", ", keys)}";
         }
 
+        internal static string GetMySQLDataType(PropertyInfo property)
+        {
+            Type _type = property.PropertyType;
+
+            // Nullable tipleri kontrol ediyoruz
+            if (_type.IsGenericType && _type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                _type = Nullable.GetUnderlyingType(_type);
+            }
+
+            if (_type == typeof(int))
+                return "INT";
+            else if (_type == typeof(Int64))
+                return "BIGINT";
+            else if (_type == typeof(string))
+                return "VARCHAR(50)";
+            else if (_type == typeof(DateTime))
+                return "DATETIME";
+            else if (_type == typeof(float))
+                return "FLOAT";
+            else if (_type == typeof(double))
+                return "DOUBLE";
+            else if (_type == typeof(decimal))
+                return "DECIMAL(8,2)";
+            else if (_type == typeof(bool))
+                return "TINYINT(1)";
+            else if (_type == typeof(byte[]))
+                return "BLOB";
+            else if (_type == typeof(Enum))
+                return "ENUM";
+            // Add other type mappings here...
+
+            throw new ArgumentException($"Unsupported type: {_type.Name}");
+        }
+        internal static string GetConstraints(PropertyInfo property)
+        {
+            List<string> constraints = new List<string>();
+
+            if (property.GetCustomAttribute<KeyAttribute>() != null)
+                constraints.Add("NOT NULL AUTO_INCREMENT UNIQUE");
+
+            if (property.GetCustomAttribute<RequiredAttribute>() != null)
+                constraints.Add("NOT NULL");
+
+            if (property.GetCustomAttribute<UniqueAttribute>() != null)
+                constraints.Add("UNIQUE");
+
+            return string.Join(" ", constraints);
+        }
+
 
         public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
         {
