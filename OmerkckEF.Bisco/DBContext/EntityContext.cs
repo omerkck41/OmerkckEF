@@ -829,6 +829,21 @@ namespace OmerkckEF.Biscom.DBContext
 
 
         #region CUD Table
+        /// <summary>
+        /// Creates a new database if it doesn't already exist on the specified database server.
+        /// If no database name is provided, it defaults to the value set in <see cref="DBSchemaName"/>.
+        /// </summary>
+        /// <param name="databaseName">Optional. The name of the database to create. If not provided, the default schema name is used.</param>
+        /// <returns>
+        /// A <see cref="Result{T}"/> indicating whether the operation was successful (<see cref="Result{T}.IsSuccess"/>).
+        /// If successful, the result contains <c>true</c>; otherwise, it contains an error message.
+        /// </returns>
+        /// <example>
+        /// <code>
+        /// // Example usage:
+        /// var result = CreateDatabase("NewDatabase");
+        /// </code>
+        /// </example>
         public Result<bool> CreateDatabase(string? databaseName = null)
         {
             databaseName ??= DBSchemaName;
