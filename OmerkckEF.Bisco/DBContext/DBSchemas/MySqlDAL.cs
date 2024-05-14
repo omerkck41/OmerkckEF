@@ -30,7 +30,7 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
                 ConnectionLifeTime = (uint)(dbServerInfo?.DbConnLifetime ?? 300),
                 ConnectionTimeout = (uint)(dbServerInfo?.DbConnTimeout ?? 500),
                 AllowUserVariables = dbServerInfo?.DbAllowuserinput ?? true,
-                SslMode = (MySqlSslMode)Enum.Parse(typeof(MySqlSslMode), dbServerInfo?.DbSslMode)
+                SslMode = (MySqlSslMode)Enum.Parse(typeof(MySqlSslMode), dbServerInfo!.DbSslMode)
             };
 
             if (Enum.TryParse(dbServerInfo?.DbSslMode, true, out MySqlSslMode sslMode))

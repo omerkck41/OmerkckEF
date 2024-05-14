@@ -3,7 +3,7 @@ using static OmerkckEF.Biscom.ToolKit.Enums;
 
 namespace OmerkckEF.Biscom.ToolKit
 {
-	public class Attributes { }
+    public class Attributes { }
 
     [AttributeUsage(AttributeTargets.Property)]
     public class ClassNameAttribute : Attribute
@@ -13,29 +13,29 @@ namespace OmerkckEF.Biscom.ToolKit
 
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter, AllowMultiple = false, Inherited = true)]
     public class UniqueAttribute : ValidationAttribute
-	{
-		
-	}
+    {
+
+    }
 
     [AttributeUsage(AttributeTargets.Property)]
     public class DataNameAttribute : Attribute
     {
         public DataNameAttribute()
         {
-            _ValueNames = new List<string>();
+            ValueName = [];
         }
 
         public DataNameAttribute(params string[] valueNames)
         {
-            _ValueNames = valueNames.ToList();
+            ValueName = [.. valueNames];
         }
 
         public List<string> ValueNames
         {
-            get { return _ValueNames; }
-            set { _ValueNames = value; }
+            get { return ValueName; }
+            set { ValueName = value; }
         }
-        protected List<string> _ValueNames { get; set; }
+        protected List<string> ValueName { get; set; }
     }
 
     [AttributeUsage(AttributeTargets.Class)]
@@ -46,7 +46,7 @@ namespace OmerkckEF.Biscom.ToolKit
             TableType = TableType.PrimaryTable;
             TableName = "Tables";
             PrimaryKey = "id";
-            SearchFields = new string[] { "id" };
+            SearchFields = ["id"];
         }
 
         public string? TableName { get; set; }

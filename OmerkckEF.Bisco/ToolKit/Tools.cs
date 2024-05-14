@@ -1,7 +1,6 @@
 ﻿using OmerkckEF.Biscom.DBContext;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.Data.Common;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
@@ -10,26 +9,6 @@ namespace OmerkckEF.Biscom.ToolKit
 {
     public static class Tools
     {
-        /// <summary>
-        /// DataReader Extensions
-        /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="columnName"></param>
-        /// <returns></returns>
-        public static bool HasColumn(this DbDataReader reader, string columnName)
-        {
-            try
-            {
-                return reader.GetOrdinal(columnName) >= 0;
-            }
-            catch (IndexOutOfRangeException)
-            {
-                return false;
-            }
-        }
-
-
-
         /// <summary>
         /// Attachments for Entity use
         /// </summary>
@@ -41,7 +20,7 @@ namespace OmerkckEF.Biscom.ToolKit
         /// <param name="Prop"></param>
         /// <param name="Entity"></param>
         /// <param name="Value"></param>
-        public static void ParsePrimitive(PropertyInfo prop, object entity, object value)
+        internal static void ParsePrimitive(PropertyInfo prop, object entity, object value)
         {
             if (prop == null || entity == null || (value == null || value == DBNull.Value)) return;
 
@@ -97,31 +76,33 @@ namespace OmerkckEF.Biscom.ToolKit
         /// <returns></returns>
         public static IEnumerable<PropertyInfo> GetProperties(Type ClassType, Type AttirbuteType, bool IsKeyAttirbute = true)
         {
-            if (ClassType == null) return new List<PropertyInfo>();
+            if (ClassType == null) return [];
             if (AttirbuteType == null) return ClassType.GetProperties();
 
-            return ClassType.GetProperties().Where(x => IsKeyAttirbute ? x.GetCustomAttributes(AttirbuteType, true).Any()
-                                                                       : x.GetCustomAttributes(AttirbuteType, true).Any() && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any());
+            return ClassType.GetProperties().Where(x => IsKeyAttirbute ? x.GetCustomAttributes(AttirbuteType, true).Length != 0
+                                                                       : x.GetCustomAttributes(AttirbuteType, true).Length != 0 && x.GetCustomAttributes(typeof(KeyAttribute), true).Length == 0);
         }
         public static object GetKeyAttribute<T>(this T obj) where T : class
         {
-            return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+            if (obj is null) return "";
+
+            return typeof(T).GetProperties().Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                             .Select(p => p.Name).FirstOrDefault()!;
         }
-        public static object? GetEntityValue<T, TAttribute>(this T entity, string propertyName = null) where T : class where TAttribute : class
+        public static object? GetEntityValue<T, TAttribute>(this T entity, string? propertyName = null) where T : class where TAttribute : class
         {
             PropertyInfo? property;
 
             if (!string.IsNullOrEmpty(propertyName))
             {
                 property = typeof(T).GetProperties()
-                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Any())
+                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Length > 0)
                                     .FirstOrDefault(x => x.Name == propertyName);
             }
             else
             {
                 property = typeof(T).GetProperties()
-                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Any())
+                                    .Where(x => x.GetCustomAttributes(typeof(TAttribute), true).Length > 0)
                                     .FirstOrDefault();
             }
 
@@ -132,7 +113,7 @@ namespace OmerkckEF.Biscom.ToolKit
 
             return null;
         }
-        private static string GetColumnNames<T>(T entity) where T : class
+        public static string GetColumnNames<T>(T entity) where T : class
         {
             var keys = GetProperties(typeof(T), typeof(DataNameAttribute), false)
                        .Where(x => x.GetValue(entity) != null)
@@ -159,7 +140,7 @@ namespace OmerkckEF.Biscom.ToolKit
 
         internal static string GetMySQLDataType(PropertyInfo property)
         {
-            Type _type = property.PropertyType;
+            Type? _type = property.PropertyType;
 
             // Nullable tipleri kontrol ediyoruz
             if (_type.IsGenericType && _type.GetGenericTypeDefinition() == typeof(Nullable<>))
@@ -189,11 +170,11 @@ namespace OmerkckEF.Biscom.ToolKit
                 return "ENUM";
             // Add other type mappings here...
 
-            throw new ArgumentException($"Unsupported type: {_type.Name}");
+            throw new ArgumentException($"Unsupported type: {_type?.Name}");
         }
         internal static string GetConstraints(PropertyInfo property)
         {
-            List<string> constraints = new List<string>();
+            List<string> constraints = [];
 
             if (property.GetCustomAttribute<KeyAttribute>() != null)
                 constraints.Add("NOT NULL AUTO_INCREMENT UNIQUE");
@@ -208,7 +189,7 @@ namespace OmerkckEF.Biscom.ToolKit
         }
 
 
-        public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
+        internal static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
         {
             try
             {
@@ -223,7 +204,7 @@ namespace OmerkckEF.Biscom.ToolKit
                 return null;
             }
         }
-        public static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParamList<T>(IEnumerable<T> list)
+        internal static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParamList<T>(IEnumerable<T> list)
         {
             try
             {
@@ -261,7 +242,7 @@ namespace OmerkckEF.Biscom.ToolKit
                 return null;
             }
         }
-        public static Tuple<string, Dictionary<string, object>>? GetUpdateColmAndParams<T>(T entity, IEnumerable<string> fields) where T : class
+        internal static Tuple<string, Dictionary<string, object>>? GetUpdateColmAndParams<T>(T entity, IEnumerable<string> fields) where T : class
         {
             try
             {
@@ -278,13 +259,13 @@ namespace OmerkckEF.Biscom.ToolKit
         }
 
 
-        public static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
+        internal static Dictionary<string, object> GetDbParameters<T>(T entity, IEnumerable<string>? fields = null)
         {
-            Dictionary<string, object> dict = new();
+            Dictionary<string, object> dict = [];
             try
             {
                 dict = GetProperties(typeof(T), typeof(DataNameAttribute))
-                       .Where(x => x.GetValue(entity) != null && ((fields?.Contains(x.Name) ?? true) || x.GetCustomAttributes(typeof(KeyAttribute), true).Any()))
+                       .Where(x => x.GetValue(entity) != null && ((fields?.Contains(x.Name) ?? true) || x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0))
                        .Select(x => new KeyValuePair<string, object>($"@{x.Name}", x.GetValue(entity) ?? DBNull.Value))
                        .ToDictionary(x => x.Key, x => x.Value);
 
@@ -295,7 +276,7 @@ namespace OmerkckEF.Biscom.ToolKit
                 return dict;
             }
         }
-        public static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
+        internal static Dictionary<string, object> GetDbParametersList<T>(IEnumerable<T> list)
         {
             return list.SelectMany((item, index) => GetProperties(typeof(T), typeof(DataNameAttribute), false)
                     .Where(x => x.GetValue(item) != null)
@@ -309,7 +290,7 @@ namespace OmerkckEF.Biscom.ToolKit
             try
             {
                 Type type = typeof(T);
-                List<T> list = new();
+                List<T> list = [];
 
                 PropertyInfo[] properties = type.GetProperties();
                 foreach (DataRow dr in dt.Rows)
@@ -349,13 +330,13 @@ namespace OmerkckEF.Biscom.ToolKit
         {
             try
             {
-                if (newT == null || oldT == null) return new();
+                if (newT == null || oldT == null) return [];
 
-                List<string> fields = new();
+                List<string> fields = [];
 
                 var propertiesWithAttribute = newT.GetType()
                                                   .GetProperties()
-                                                  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && !x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                                  .Where(x => Attribute.IsDefined(x, typeof(DataNameAttribute)) && x.GetCustomAttributes(typeof(KeyAttribute), true).Length <= 0)
                                                   .ToList();
 
                 foreach (var prop in propertiesWithAttribute)
@@ -367,8 +348,8 @@ namespace OmerkckEF.Biscom.ToolKit
 
                     if (prop.PropertyType == typeof(byte[]))
                     {
-                        byte[] oldBytes = oldValue as byte[] ?? new byte[] { 0 };
-                        byte[] newBytes = newValue as byte[] ?? new byte[] { 0 };
+                        byte[] oldBytes = oldValue as byte[] ?? [0];
+                        byte[] newBytes = newValue as byte[] ?? [0];
 
                         if (!oldBytes.SequenceEqual(newBytes))
                             fields.Add(prop.Name);
@@ -390,7 +371,7 @@ namespace OmerkckEF.Biscom.ToolKit
             }
             catch
             {
-                return new();
+                return [];
             }
         }
         public static SecureString ConvertToSecureString(this string value)
@@ -418,7 +399,7 @@ namespace OmerkckEF.Biscom.ToolKit
                 string MaxLengthError = string.Empty;
                 string IdentityName = string.Empty;
                 var IdentValue = 0;
-                Dictionary<string, object> dict = new();
+                Dictionary<string, object> dict = [];
 
                 Type type = Entity.GetType();
 

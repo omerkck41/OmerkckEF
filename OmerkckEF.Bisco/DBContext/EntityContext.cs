@@ -9,17 +9,11 @@ using static OmerkckEF.Biscom.ToolKit.Tools;
 
 namespace OmerkckEF.Biscom.DBContext
 {
-    public class EntityContext : Bisco
+    public class EntityContext(DBServer dbServerInfo) : Bisco(dbServerInfo)
     {
-        private readonly DBServer dbServerInfo;
+        private readonly DBServer dbServerInfo = dbServerInfo;
 
         private string? QueryString { get; set; }
-
-
-        public EntityContext(DBServer dbServerInfo) : base(dbServerInfo)
-        {
-            this.dbServerInfo = dbServerInfo;
-        }
 
 
         #region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
@@ -106,7 +100,7 @@ namespace OmerkckEF.Biscom.DBContext
                 if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
                 var getColmAndParams = GetInsertColmAndParams<T>(entity);
-                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
+                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? [];
 
                 var identityColumn = entity.GetKeyAttribute<T>();
                 var ReturnIdentity = DBServer.DBServerInfo?.DBModel switch
@@ -220,16 +214,18 @@ namespace OmerkckEF.Biscom.DBContext
         public Result<bool> DoMapUpdate<T>(string? schema, T currentT, bool transaction = false) where T : class
         {
             var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                          .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
-            var entity = GetMapClassByWhere<T>(identityValue ?? "").Data?.FirstOrDefault();
+            if (identityValue == null) return new Result<bool> { IsSuccess = false, Message = "Identity Value Null" };
+
+            var entity = GetMapClassByWhere<T>(identityValue).Data?.FirstOrDefault();
 
             if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
             List<string> fields = GetChangedFields<T>(currentT, entity);
 
-            if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
+            if (fields.Count <= 0) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
             return DoUpdate<T>(schema, currentT, fields, transaction);
         }
@@ -258,7 +254,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
 
             var setField = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any())
+                                         .Where(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Length > 0)
                                          .Select(s => $"{s.Name}={s.GetValue(currentT)}");
 
             var sqlQuery = $"Update {schema}.{typeof(T).Name} set {string.Join(" , ", setField)} {whereClause};";
@@ -399,7 +395,7 @@ namespace OmerkckEF.Biscom.DBContext
 
 
                 var dataName = typeof(T).GetProperties()
-                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
+                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Length > 0 && x.Name == fieldName)?.Name.ToString();
 
                 if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
@@ -532,7 +528,7 @@ namespace OmerkckEF.Biscom.DBContext
                 if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
                 var getColmAndParams = GetInsertColmAndParams<T>(entity);
-                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? new();
+                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? [];
 
                 var identityColumn = entity.GetKeyAttribute<T>();
                 var ReturnIdentity = DBServer.DBServerInfo?.DBModel switch
@@ -643,7 +639,7 @@ namespace OmerkckEF.Biscom.DBContext
         public async Task<Result<bool>> DoMapUpdateAsync<T>(string? schema, T currentT, bool transaction = false) where T : class
         {
             var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                          .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
 
@@ -653,7 +649,7 @@ namespace OmerkckEF.Biscom.DBContext
 
             List<string> fields = GetChangedFields<T>(currentT, entity.Data?.FirstOrDefault()!);
 
-            if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
+            if (fields.Count <= 0) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
             return await DoUpdateAsync<T>(schema, currentT, fields, transaction);
 
@@ -661,7 +657,7 @@ namespace OmerkckEF.Biscom.DBContext
         public async Task<Result<bool>> DoMapUpdateAsync<T>(T currentT, bool transaction = false) where T : class
         {
             var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                          .Select(s => $"where {s.Name}={s.GetValue(currentT)}").FirstOrDefault();
 
             var entity = await GetMapClassByWhereAsync<T>(identityValue ?? "");
@@ -670,7 +666,7 @@ namespace OmerkckEF.Biscom.DBContext
 
             List<string> fields = GetChangedFields<T>(currentT, entity.Data?.FirstOrDefault()!);
 
-            if (!fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
+            if (fields.Count <= 0) return new Result<bool> { IsSuccess = false, Message = "Fields Null" };
 
             return await DoUpdateAsync<T>(DBSchemaName, currentT, fields, transaction);
         }
@@ -686,7 +682,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var identityColumn = entity.GetKeyAttribute<T>();
                 var identityValue = typeof(T).GetProperties()
-                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                         .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                          .Select(s => s.GetValue(entity)).FirstOrDefault();
 
                 if (identityValue == null || (int)identityValue == 0)
@@ -776,7 +772,7 @@ namespace OmerkckEF.Biscom.DBContext
 
 
                 var dataName = typeof(T).GetProperties()
-                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Any() && x.Name == fieldName)?.Name.ToString();
+                                        .FirstOrDefault(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Length > 0 && x.Name == fieldName)?.Name.ToString();
 
                 if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
@@ -858,7 +854,7 @@ namespace OmerkckEF.Biscom.DBContext
             var exResult = RunNonQuery(databaseName, query);
             return !exResult.IsSuccess
                    ? new Result<bool> { IsSuccess = false, Message = "Database CreateTable RunNonQuery error.\n" + exResult.Message }
-                   : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                   : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
         }
 
         /// <summary>
@@ -874,15 +870,15 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                StringBuilder script = new StringBuilder();
-                StringBuilder strUniq = new StringBuilder();
+                StringBuilder script = new();
+                StringBuilder strUniq = new();
 
                 string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
                 script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
                 //We assigned unique by finding KeyAttribute and Primary Key
                 var keyName = typeof(T).GetProperties()
-                                       .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
+                                       .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                        .Select(p => p.Name).FirstOrDefault()!;
 
                 //strUniq.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`),");
@@ -909,7 +905,7 @@ namespace OmerkckEF.Biscom.DBContext
                 var exResult = RunNonQuery(schema, script.ToString());
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database CreateTable RunNonQuery error.\n" + exResult.Message }
-                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
             }
             catch (Exception ex)
             {
@@ -936,7 +932,7 @@ namespace OmerkckEF.Biscom.DBContext
                 var exResult = RunNonQuery(schema, $"DROP TABLE IF EXISTS {tableName};");
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database DropTable RunNonQuery error.\n" + exResult.Message }
-                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
             }
             catch (Exception ex)
             {
@@ -957,11 +953,11 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                StringBuilder script = new StringBuilder();
+                StringBuilder script = new();
                 string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
                 script.AppendLine($"ALTER TABLE {tableName}");
 
-                List<string> existingColumns = new List<string>();
+                List<string> existingColumns = [];
 
                 if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
@@ -997,7 +993,7 @@ namespace OmerkckEF.Biscom.DBContext
                 var exResult = RunNonQuery(schema, script.ToString());
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database UpdateTable RunNonQuery error.\n" + exResult.Message }
-                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
             }
             catch (Exception ex)
             {
@@ -1019,13 +1015,13 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                StringBuilder script = new StringBuilder();
+                StringBuilder script = new();
                 string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
                 script.AppendLine($"ALTER TABLE {tableName}");
 
                 if (string.IsNullOrEmpty(columnName))
                 {
-                    List<string> existingColumns = new List<string>();
+                    List<string> existingColumns = [];
 
                     if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
@@ -1063,7 +1059,7 @@ namespace OmerkckEF.Biscom.DBContext
                 var exResult = RunNonQuery(schema, script.ToString());
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database RemoveTableColumn RunNonQuery error.\n" + exResult.Message }
-                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
             }
             catch (Exception ex)
             {
@@ -1096,7 +1092,7 @@ namespace OmerkckEF.Biscom.DBContext
                 else if ((int)attribute == 6)
                     attributeName = "Auto Increment";
 
-                StringBuilder script = new StringBuilder();
+                StringBuilder script = new();
                 string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
                 script.AppendLine($"ALTER TABLE {tableName}");
 
@@ -1133,7 +1129,7 @@ namespace OmerkckEF.Biscom.DBContext
                 var exResult = RunNonQuery(schema, script.ToString());
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database AddAttributeToTableColumn RunNonQuery error.\n" + exResult.Message }
-                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 ? true : false };
+                       : new Result<bool> { IsSuccess = true, Data = exResult.Data >= 0 };
             }
             catch (Exception ex)
             {
