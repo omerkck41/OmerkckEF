@@ -390,7 +390,7 @@ namespace OmerkckEF.Biscom.ToolKit
             return Marshal.PtrToStringAuto(result) ?? "";
         }
 
-        public static string CheckAttributeColumn<T>(T Entity, Bisco bisco) where T : class
+        public static string CheckAttributeColumn<T>(T Entity, Bisco bisco, string? schema = null) where T : class
         {
             try
             {
@@ -442,7 +442,7 @@ namespace OmerkckEF.Biscom.ToolKit
                                         {
                                             if (string.IsNullOrEmpty((string)colmValue)) return;
 
-                                            string sqlQuery = $"Select {f.Name} from {type.Name} where {IdentityName}!={IdentValue} and {f.Name}=@{f.Name}";
+                                            string sqlQuery = $"Select {f.Name} from {schema ??= bisco.DBSchemaName}.{type.Name} where {IdentityName}!={IdentValue} and {f.Name}=@{f.Name}";
                                             var UniqueMsg = f.GetCustomAttribute<UniqueAttribute>()?.ErrorMessage ?? null;
 
                                             dict.Add($"@{f.Name}", colmValue);
@@ -450,10 +450,8 @@ namespace OmerkckEF.Biscom.ToolKit
 
                                             if (ctrl.IsSuccess)
                                             {
-                                                if (!string.IsNullOrEmpty(UniqueMsg))
-                                                    UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : null;
-                                                else
-                                                    UniqueError += ctrl.Data != null ? "- " + f.Name + " : " + colmValue + "\n" : null;
+                                                if (ctrl.Data != null)
+                                                    UniqueError += UniqueMsg != null ? ("ErrorMessage : " + UniqueMsg) + "\n" : "- " + f.Name + " : " + colmValue + "\n";
                                             }
                                         }
                                     });

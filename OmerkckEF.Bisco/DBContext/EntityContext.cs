@@ -96,7 +96,7 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this);
+                string check = CheckAttributeColumn<T>(entity, this, schema);
                 if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
                 var getColmAndParams = GetInsertColmAndParams<T>(entity);
@@ -155,7 +155,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 foreach (T entity in entityList)
                 {
-                    string check = CheckAttributeColumn<T>(entity, this);
+                    string check = CheckAttributeColumn<T>(entity, this, schema);
                     if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = "There are problems in the list.\n\n" + check };
                 }
 
@@ -189,7 +189,7 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this);
+                string check = CheckAttributeColumn<T>(entity, this, schema);
                 if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = check };
 
 
@@ -524,7 +524,7 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this);
+                string check = CheckAttributeColumn<T>(entity, this, schema);
                 if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
 
                 var getColmAndParams = GetInsertColmAndParams<T>(entity);
@@ -583,7 +583,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 foreach (T entity in entityList)
                 {
-                    string check = CheckAttributeColumn<T>(entity, this);
+                    string check = CheckAttributeColumn<T>(entity, this, schema);
                     if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = "There are problems in the list.\n\n" + check };
                 }
 
@@ -616,7 +616,7 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this);
+                string check = CheckAttributeColumn<T>(entity, this, schema);
                 if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = check };
 
                 var identityColumn = entity.GetKeyAttribute<T>();
