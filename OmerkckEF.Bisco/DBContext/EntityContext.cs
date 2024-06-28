@@ -870,10 +870,12 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
+                schema ??= DBSchemaName;
+
                 StringBuilder script = new();
                 StringBuilder strUniq = new();
 
-                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name.ToLower();
                 script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
                 //We assigned unique by finding KeyAttribute and Primary Key
@@ -926,7 +928,8 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
-                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+                schema ??= DBSchemaName;
+                string tableName = schema + "." + typeof(T).Name.ToLower();
 
                 //Drop Table in MySql
                 var exResult = RunNonQuery(schema, $"DROP TABLE IF EXISTS {tableName};");
@@ -953,8 +956,12 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
+                schema ??= DBSchemaName;
+
                 StringBuilder script = new();
-                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+
+                string tableName = schema + "." + typeof(T).Name.ToLower();
+
                 script.AppendLine($"ALTER TABLE {tableName}");
 
                 List<string> existingColumns = [];
@@ -1028,8 +1035,12 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
+                schema ??= DBSchemaName;
+
                 StringBuilder script = new();
-                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+
+                string tableName = schema + "." + typeof(T).Name.ToLower();
+
                 script.AppendLine($"ALTER TABLE {tableName}");
 
                 if (string.IsNullOrEmpty(columnName))
@@ -1095,6 +1106,8 @@ namespace OmerkckEF.Biscom.DBContext
         {
             try
             {
+                schema ??= DBSchemaName;
+
                 string attributeName = string.Empty;
                 if ((int)attribute == 0)
                     attributeName = "Primary Key";
@@ -1106,7 +1119,9 @@ namespace OmerkckEF.Biscom.DBContext
                     attributeName = "Auto Increment";
 
                 StringBuilder script = new();
-                string tableName = schema ??= DBSchemaName + "." + typeof(T).Name.ToLower();
+
+                string tableName = schema + "." + typeof(T).Name.ToLower();
+
                 script.AppendLine($"ALTER TABLE {tableName}");
 
                 bool columnFound = false;
