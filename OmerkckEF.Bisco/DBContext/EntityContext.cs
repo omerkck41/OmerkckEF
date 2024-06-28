@@ -958,6 +958,7 @@ namespace OmerkckEF.Biscom.DBContext
                 script.AppendLine($"ALTER TABLE {tableName}");
 
                 List<string> existingColumns = [];
+                Dictionary<string, string> columnTypes = [];
 
                 if (!OpenConnection(schema)) return new Result<bool> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
@@ -968,6 +969,7 @@ namespace OmerkckEF.Biscom.DBContext
                     while (reader.Read())
                     {
                         existingColumns.Add(reader.GetString(0)); // Assuming column names are in the first column
+                        columnTypes.Add(reader.GetString(0), reader.GetString(1)); // Column name and its type
                     }
                 }
 
@@ -976,17 +978,28 @@ namespace OmerkckEF.Biscom.DBContext
                 foreach (var property in properties)
                 {
                     string columnName = property.Name;
+                    string columnType = GetMySQLDataType(property);
+                    string constraints = GetConstraints(property);
+                    string defaultValue = constraints == "NOT NULL AUTO_INCREMENT UNIQUE" ? "" : GetDefaultValue(property);
+
                     if (!existingColumns.Contains(columnName))
                     {
-                        // Add the new column
-                        string columnType = GetMySQLDataType(property);
-                        string constraints = GetConstraints(property);
-                        script.AppendLine($"ADD COLUMN {columnName} {columnType} {constraints},");
+                        // Add the new column with default value if provided
+                        script.AppendLine($"ADD COLUMN {columnName} {columnType} {constraints} {defaultValue},");
+                    }
+                    else if (existingColumns.Contains(columnName) && columnTypes[columnName] != columnType)
+                    {
+                        // Modify the column type if it exists but has a different type, and set default value if provided
+                        script.AppendLine($"MODIFY COLUMN {columnName} {columnType} {constraints} {defaultValue},");
                     }
                 }
 
                 // Remove the last comma from the script
-                script.Remove(script.Length - 3, 2);
+                if (script.ToString().EndsWith(",\n"))
+                    script.Remove(script.Length - 2, 1);
+                else
+                    script.Remove(script.Length - 3, 2);
+
                 script.AppendLine(";");
 
                 //Update Table in MySql

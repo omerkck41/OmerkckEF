@@ -187,6 +187,22 @@ namespace OmerkckEF.Biscom.ToolKit
 
             return string.Join(" ", constraints);
         }
+        internal static string GetDefaultValue(PropertyInfo property)
+        {
+            var defaultValue = property.GetValue(Activator.CreateInstance(property.DeclaringType));
+            if (defaultValue == null) return string.Empty;
+
+            if (property.PropertyType == typeof(string))
+            {
+                return $"DEFAULT '{defaultValue}'";
+            }
+            else if (property.PropertyType.IsValueType)
+            {
+                return $"DEFAULT {defaultValue}";
+            }
+
+            return string.Empty;
+        }
 
 
         internal static Tuple<string, Dictionary<string, object>>? GetInsertColmAndParams<T>(T entity) where T : class
