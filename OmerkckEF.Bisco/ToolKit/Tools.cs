@@ -1,4 +1,4 @@
-﻿using OmerkckEF.Biscom.DBContext;
+using OmerkckEF.Biscom.DBContext;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
@@ -156,6 +156,8 @@ namespace OmerkckEF.Biscom.ToolKit
                 return "VARCHAR(50)";
             else if (_type == typeof(DateTime))
                 return "DATETIME";
+            else if (_type == typeof(Date))
+                return "DATE";
             else if (_type == typeof(float))
                 return "FLOAT";
             else if (_type == typeof(double))
