@@ -4,7 +4,7 @@ using System.Data;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security;
-
+using static System.RunTime.InteropServices.JavaScript.JSType
 namespace OmerkckEF.Biscom.ToolKit
 {
     public static class Tools
