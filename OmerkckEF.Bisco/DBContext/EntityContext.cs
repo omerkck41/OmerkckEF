@@ -875,7 +875,7 @@ namespace OmerkckEF.Biscom.DBContext
                 StringBuilder script = new();
                 StringBuilder strUniq = new();
 
-                string tableName = schema + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name;
                 script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
                 //We assigned unique by finding KeyAttribute and Primary Key
@@ -929,7 +929,7 @@ namespace OmerkckEF.Biscom.DBContext
             try
             {
                 schema ??= DBSchemaName;
-                string tableName = schema + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name;
 
                 //Drop Table in MySql
                 var exResult = RunNonQuery(schema, $"DROP TABLE IF EXISTS {tableName};");
@@ -960,7 +960,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 
@@ -1039,7 +1039,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 
@@ -1120,7 +1120,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name.ToLower();
+                string tableName = schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 
