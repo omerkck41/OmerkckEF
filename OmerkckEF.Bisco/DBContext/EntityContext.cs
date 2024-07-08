@@ -878,32 +878,26 @@ namespace OmerkckEF.Biscom.DBContext
                 string tableName = schema + "." + typeof(T).Name;
                 script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
-                //We assigned unique by finding KeyAttribute and Primary Key
+                // We assigned unique by finding KeyAttribute and Primary Key
                 var keyName = typeof(T).GetProperties()
                                        .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
                                        .Select(p => p.Name).FirstOrDefault()!;
 
-                //strUniq.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`),");
-                //strUniq.AppendLine($"\tUNIQUE INDEX `{keyName}_UNIQUE` (`{keyName}` ASC) VISIBLE,");
-
                 GetProperties(typeof(T), typeof(DataNameAttribute), true).ToList().ForEach(property =>
                 {
                     string columnType = GetMySQLDataType(property);
-                    string constraints = Tools.GetConstraints(property);
+                    string constraints = GetConstraints(property);
 
-                    script.AppendLine($"\t{property.Name} {columnType} {constraints},");
+                    // Check for default value
+                    object? defaultValue = constraints == "NOT NULL AUTO_INCREMENT UNIQUE" ? "" : GetDefaultValue(property);
 
-                    //if (constraints.Contains("UNIQUE"))
-                    //    strUniq.AppendLine($"\tUNIQUE INDEX `{property.Name}_UNIQUE` (`{property.Name}` ASC) VISIBLE,");
+                    script.AppendLine($"\t{property.Name} {columnType} {constraints}{defaultValue},");
                 });
-
-                strUniq.Remove(strUniq.Length - 3, 2);
-                script.AppendLine("\n" + strUniq.ToString());
 
                 script.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`)");
                 script.AppendLine(");");
 
-                //Create Table in MySql
+                // Create Table in MySql
                 var exResult = RunNonQuery(schema, script.ToString());
                 return !exResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database CreateTable RunNonQuery error.\n" + exResult.Message }
@@ -915,6 +909,8 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing CreateTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
+
+
         /// <summary>
         /// Drops a table in the specified schema (defaults to the current database schema).
         /// </summary>
