@@ -897,8 +897,8 @@ namespace OmerkckEF.Biscom.DBContext
                     //    strUniq.AppendLine($"\tUNIQUE INDEX `{property.Name}_UNIQUE` (`{property.Name}` ASC) VISIBLE,");
                 });
 
-                //strUniq.Remove(strUniq.Length - 3, 2);
-                //script.AppendLine("\n" + strUniq.ToString());
+                strUniq.Remove(strUniq.Length - 3, 2);
+                script.AppendLine("\n" + strUniq.ToString());
 
                 script.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`)");
                 script.AppendLine(");");
