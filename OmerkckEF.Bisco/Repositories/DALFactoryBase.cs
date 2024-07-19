@@ -14,6 +14,7 @@ namespace OmerkckEF.Biscom.Repositories
             DataBaseType.Sql => new SqlDAL(),
             DataBaseType.Oracle => new OracleDAL(),
             DataBaseType.PostgreSQL => new PostgreSQLDAL(),
+            DataBaseType.SQLite => new SQLiteDAL(),
             _ => new MySqlDAL()
         };
     }

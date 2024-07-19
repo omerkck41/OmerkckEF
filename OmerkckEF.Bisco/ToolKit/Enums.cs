@@ -8,7 +8,8 @@
             MySql = 1,
             Sql = 2,
             Oracle = 3,
-            PostgreSQL = 4
+            PostgreSQL = 4,
+            SQLite = 5
         }
 
         public enum TableType

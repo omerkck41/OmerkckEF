@@ -14,7 +14,7 @@ namespace OmerkckEF.Biscom.DBContext
         private readonly DBServer dbServerInfo = dbServerInfo;
 
         private string? QueryString { get; set; }
-
+        string tableName = string.Empty;
 
         #region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
@@ -25,7 +25,9 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (!OpenConnection(schema)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                queryString ??= $"Select * from {schema ??= DBSchemaName}.{typeof(T).Name}";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                queryString ??= $"SELECT * FROM {tableName}";
 
                 using var command = ExeCommand(queryString, parameters, commandType);
                 using var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
@@ -57,17 +59,21 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public Result<List<T>> GetMapClass<T>(Expression<Func<T, bool>> filter) where T : class
         {
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+
             if (filter != null)
-                QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+                QueryString = $"Select * from {tableName} where {filter.ConvertExpressionToQueryString()}";
             else
-                QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name};";
+                QueryString = $"Select * from {tableName};";
 
             return GetMapClass<T>(QueryString);
         }
         public Result<T> GetMapClassById<T>(object id) where T : class
         {
             var entity = Activator.CreateInstance<T>();
-            QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
+
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} where {entity.GetKeyAttribute<T>()}={id}";
 
             var exeResult = GetMapClass<T>(QueryString);
 
@@ -77,15 +83,19 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public Result<List<T>> GetMapClassByWhere<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
         {
-            QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} {whereCond}";
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} {whereCond}";
 
             return GetMapClass<T>(QueryString, parameters, DBSchemaName, commandType);
         }
         public Result<List<T>> GetMapClassBySchema<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
         {
-            QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? DBSchemaName : schema)}.{typeof(T).Name} {whereCond}";
+            schema ??= DBSchemaName;
+            tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
 
-            return GetMapClass<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? DBSchemaName : schema), commandType);
+            QueryString = $"Select * from {tableName} {whereCond}";
+
+            return GetMapClass<T>(QueryString, parameters, schema, commandType);
         }
         #endregion
 
@@ -110,10 +120,14 @@ namespace OmerkckEF.Biscom.DBContext
                     DataBaseType.Oracle => $" RETURNING {identityColumn} INTO :new_id;",
                     DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
                     DataBaseType.None => "; SELECT @@Identity;",
+                    DataBaseType.SQLite => "; SELECT last_insert_rowid();",
                     null => "; SELECT @@Identity;",
                     _ => "; SELECT @@Identity;",
                 };
-                var sqlQuery = $"Insert Into {schema ??= DBSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}" + ReturnIdentity;
+
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Insert Into {tableName} {getColmAndParams?.Item1}" + ReturnIdentity;
 
 
                 if (getById)
@@ -161,7 +175,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
 
-                var queryString = $"INSERT INTO {schema ??= DBSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var queryString = $"INSERT INTO {tableName} {getMultiInsertColmParams?.Item1}";
 
                 var exeResult = RunNonQuery(schema, queryString, getMultiInsertColmParams?.Item2, true);
 
@@ -197,7 +213,9 @@ namespace OmerkckEF.Biscom.DBContext
                 var _fields = string.Join(",", fields.Select(x => string.Format("{0}=@{0}", x.ToString())).ToList());
                 var getUpdateColmParams = GetUpdateColmAndParams<T>(entity, fields);
 
-                var sqlQuery = $"Update {schema ??= DBSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Update {tableName} set {_fields} where {identityColumn}=@{identityColumn};";
                 var exeResult = RunNonQuery(schema, sqlQuery, getUpdateColmParams?.Item2, transaction);
 
 
@@ -257,7 +275,9 @@ namespace OmerkckEF.Biscom.DBContext
                                          .Where(x => x.GetCustomAttributes(typeof(DataNameAttribute), true).Length > 0)
                                          .Select(s => $"{s.Name}={s.GetValue(currentT)}");
 
-            var sqlQuery = $"Update {schema}.{typeof(T).Name} set {string.Join(" , ", setField)} {whereClause};";
+
+            tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+            var sqlQuery = $"Update {tableName} set {string.Join(" , ", setField)} {whereClause};";
             var exeResult = RunNonQuery(schema, sqlQuery);
 
 
@@ -277,7 +297,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var setClause = string.Join(" , ", prms.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList());
 
-                var sqlQuery = $"Update {DBSchemaName}.{typeof(T).Name} set {setClause} where {filter.ConvertExpressionToQueryString()}";
+
+                tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+                var sqlQuery = $"Update {tableName} set {setClause} where {filter.ConvertExpressionToQueryString()}";
                 var exeResult = RunNonQuery(sqlQuery, prms);
 
                 return !exeResult.IsSuccess
@@ -310,7 +332,9 @@ namespace OmerkckEF.Biscom.DBContext
                     return new Result<bool> { IsSuccess = false, Message = $"{identityColumn}; Identity Colum not found." };
 
 
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {identityColumn}=@{identityColumn};";
                 var exeResult = RunNonQuery(schema, sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
 
 
@@ -338,7 +362,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var WhereClause = filter.ConvertExpressionToQueryString();
 
-                var sqlQuery = $"Delete from {DBSchemaName}.{typeof(T).Name} where {WhereClause};";
+
+                tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {WhereClause};";
 
                 var exeResult = RunNonQuery(sqlQuery);
 
@@ -368,7 +394,9 @@ namespace OmerkckEF.Biscom.DBContext
                     .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
                     .ToDictionary(x => x.Key, x => x.Value);
 
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {identityColumn} IN ({paramsColm});";
                 var exeResult = RunNonQuery(schema, sqlQuery, dictParams, transaction);
 
 
@@ -399,7 +427,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {dataName}=@{dataName};";
                 var exeResult = RunNonQuery(schema, sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
 
                 return !exeResult.IsSuccess
@@ -424,7 +454,10 @@ namespace OmerkckEF.Biscom.DBContext
                 if (parameters == null || parameters.Count == 0) return new Result<bool> { IsSuccess = false, Message = "Parameters not found." };
 
                 var WhereClause = parameters.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList();
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {string.Join(" and ", WhereClause)};";
+
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {string.Join(" and ", WhereClause)};";
                 var exeResult = RunNonQuery(schema, sqlQuery, parameters, transaction);
 
                 return !exeResult.IsSuccess
@@ -456,7 +489,9 @@ namespace OmerkckEF.Biscom.DBContext
             {
                 if (!await OpenConnectionAsync(schema)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                queryString ??= $"Select * from {schema ??= DBSchemaName}.{typeof(T).Name}";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                queryString ??= $"Select * from {tableName}";
 
                 using var command = ExeCommand(queryString, parameters, commandType);
                 using var reader = await command.ExecuteReaderAsync();
@@ -488,14 +523,18 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public async Task<Result<List<T>>> GetMapClassAsync<T>(Expression<Func<T, bool>> filter) where T : class
         {
-            QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {filter.ConvertExpressionToQueryString()}";
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} where {filter.ConvertExpressionToQueryString()}";
 
             return await GetMapClassAsync<T>(QueryString);
         }
         public async Task<Result<T>> GetMapClassByIdAsync<T>(object id) where T : class
         {
             var entity = Activator.CreateInstance<T>();
-            QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} where {entity.GetKeyAttribute<T>()}={id}";
+
+
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} where {entity.GetKeyAttribute<T>()}={id}";
 
             var exeResult = await GetMapClassAsync<T>(QueryString);
 
@@ -505,13 +544,17 @@ namespace OmerkckEF.Biscom.DBContext
         }
         public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
         {
-            QueryString = $"Select * from {DBSchemaName}.{typeof(T).Name} {whereCond}";
+
+            tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} {whereCond}";
 
             return await GetMapClassAsync<T>(QueryString, parameters, DBSchemaName, commandType);
         }
         public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
         {
-            QueryString = $"Select * from {(string.IsNullOrEmpty(schema) ? DBSchemaName : schema)}.{typeof(T).Name} {whereCond}";
+            schema ??= DBSchemaName;
+            tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+            QueryString = $"Select * from {tableName} {whereCond}";
 
             return await GetMapClassAsync<T>(QueryString, parameters, (string.IsNullOrEmpty(schema) ? DBSchemaName : schema), commandType);
         }
@@ -541,7 +584,10 @@ namespace OmerkckEF.Biscom.DBContext
                     null => "; SELECT @@Identity;",
                     _ => "; SELECT @@Identity;",
                 };
-                var sqlQuery = $"Insert Into {schema ??= DBSchemaName}.{typeof(T).Name} {getColmAndParams?.Item1}" + ReturnIdentity;
+
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Insert Into {tableName} {getColmAndParams?.Item1}" + ReturnIdentity;
 
 
                 if (getById)
@@ -589,7 +635,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var getMultiInsertColmParams = GetInsertColmAndParamList<T>(entityList);
 
-                var queryString = $"INSERT INTO {schema ??= DBSchemaName}.{typeof(T).Name} {getMultiInsertColmParams?.Item1}";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var queryString = $"INSERT INTO {tableName} {getMultiInsertColmParams?.Item1}";
 
                 var exeResult = await RunNonQueryAsync(schema, queryString, getMultiInsertColmParams?.Item2, true);
 
@@ -623,7 +671,10 @@ namespace OmerkckEF.Biscom.DBContext
                 var _fields = string.Join(",", fields.Select(x => string.Format("{0}=@{0}", x.ToString())).ToList());
                 var getUpdateColmParams = GetUpdateColmAndParams<T>(entity, fields);
 
-                var sqlQuery = $"Update {schema ??= DBSchemaName}.{typeof(T).Name} set {_fields} where {identityColumn}=@{identityColumn};";
+
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Update {tableName} set {_fields} where {identityColumn}=@{identityColumn};";
                 var exeResult = await RunNonQueryAsync(schema, sqlQuery, getUpdateColmParams?.Item2, transaction);
 
                 return !exeResult.IsSuccess
@@ -688,8 +739,9 @@ namespace OmerkckEF.Biscom.DBContext
                 if (identityValue == null || (int)identityValue == 0)
                     return new Result<bool> { IsSuccess = false, Message = $"{identityColumn}; Identity Colum not found." };
 
-
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {identityColumn}=@{identityColumn};";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {identityColumn}=@{identityColumn};";
                 var exeResult = await RunNonQueryAsync(schema, sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
 
                 return !exeResult.IsSuccess
@@ -716,7 +768,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 var WhereClause = filter.ConvertExpressionToQueryString();
 
-                var sqlQuery = $"Delete from {DBSchemaName}.{typeof(T).Name} where {WhereClause};";
+
+                tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {WhereClause};";
 
                 var exeResult = await RunNonQueryAsync(sqlQuery);
 
@@ -746,7 +800,9 @@ namespace OmerkckEF.Biscom.DBContext
                     .Select(property => new KeyValuePair<string, object>($"@{index + property.Name}", property.GetValue(item) ?? DBNull.Value)))
                     .ToDictionary(x => x.Key, x => x.Value);
 
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {identityColumn} IN ({paramsColm});";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {identityColumn} IN ({paramsColm});";
                 var exeResult = await RunNonQueryAsync(schema, sqlQuery, dictParams, transaction);
 
                 return !exeResult.IsSuccess
@@ -776,7 +832,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 if (dataName == null) return new Result<bool> { IsSuccess = true, Message = "Fields not found." };
 
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {dataName}=@{dataName};";
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {dataName}=@{dataName};";
                 var exeResult = await RunNonQueryAsync(schema, sqlQuery, fieldValue?.CreateParameters(dataName.ToString() ?? "Id"), transaction);
 
                 return !exeResult.IsSuccess
@@ -801,7 +859,10 @@ namespace OmerkckEF.Biscom.DBContext
                 if (parameters == null || parameters.Count == 0) return new Result<bool> { IsSuccess = false, Message = "Parameters Null" };
 
                 var WhereClause = parameters.Select(x => $"{x.Key.Replace("@", "")}=@{x.Key.Replace("@", "")}").ToList();
-                var sqlQuery = $"Delete from {schema ??= DBSchemaName}.{typeof(T).Name} where {string.Join(" and ", WhereClause)};";
+
+                schema ??= DBSchemaName;
+                tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
+                var sqlQuery = $"Delete from {tableName} where {string.Join(" and ", WhereClause)};";
                 var exeResult = await RunNonQueryAsync(schema, sqlQuery, parameters, transaction);
 
                 return !exeResult.IsSuccess
@@ -875,7 +936,7 @@ namespace OmerkckEF.Biscom.DBContext
                 StringBuilder script = new();
                 StringBuilder strUniq = new();
 
-                string tableName = schema + "." + typeof(T).Name;
+                string tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : schema + "." + typeof(T).Name;
                 script.AppendLine($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
                 // We assigned unique by finding KeyAttribute and Primary Key
@@ -925,7 +986,7 @@ namespace OmerkckEF.Biscom.DBContext
             try
             {
                 schema ??= DBSchemaName;
-                string tableName = schema + "." + typeof(T).Name;
+                string tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : schema + "." + typeof(T).Name;
 
                 //Drop Table in MySql
                 var exResult = RunNonQuery(schema, $"DROP TABLE IF EXISTS {tableName};");
@@ -956,7 +1017,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name;
+                string tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 
@@ -1035,7 +1096,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name;
+                string tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 
@@ -1116,7 +1177,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 StringBuilder script = new();
 
-                string tableName = schema + "." + typeof(T).Name;
+                string tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : schema + "." + typeof(T).Name;
 
                 script.AppendLine($"ALTER TABLE {tableName}");
 

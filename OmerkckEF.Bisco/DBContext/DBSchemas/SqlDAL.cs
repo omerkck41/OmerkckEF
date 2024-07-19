@@ -27,8 +27,7 @@ namespace OmerkckEF.Biscom.DBContext.DBSchemas
                 Password = dbServerInfo?.DbPassword ?? "password123",
                 Pooling = dbServerInfo?.DbPooling ?? true,
                 MaxPoolSize = dbServerInfo?.DbMaxpoolsize ?? 100,
-                ConnectTimeout = dbServerInfo?.DbConnTimeout ?? 15,
-                // Diğer bağlantı seçeneklerini buraya ekleyebilirsiniz
+                ConnectTimeout = dbServerInfo?.DbConnTimeout ?? 15
             };
 
             // SslMode enum'u ile karşılık gelen bir değeri varsa, SSL seçeneklerini ayarlayın
