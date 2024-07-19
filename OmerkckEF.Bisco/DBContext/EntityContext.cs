@@ -952,7 +952,7 @@ namespace OmerkckEF.Biscom.DBContext
                     // Check for default value
                     object? defaultValue = constraints == "NOT NULL AUTO_INCREMENT UNIQUE" ? "" : GetDefaultValue(property);
 
-                    script.AppendLine($"\t{property.Name} {columnType} {constraints}{defaultValue},");
+                    script.AppendLine($"\t{property.Name} {columnType} {constraints} {defaultValue},");
                 });
 
                 script.AppendLine($"\tPRIMARY KEY (`{(keyName ?? tableName + "Id")}`)");
