@@ -140,9 +140,55 @@ namespace OmerkckEF.Biscom.ToolKit
                         return $"(!{ConvertExpressionToString(method.Arguments[0])})";
                     case "Contains":
                         if (method.Object == null)
-                            return $"({ConvertExpressionToString(method.Arguments[1])} IN {ConvertExpressionToString(method.Arguments[0])})";
+                        {
+                            var listValues = method.Arguments[0] as ConstantExpression;
+                            if (listValues != null)
+                            {
+                                if (listValues.Value is IEnumerable<int> intList)
+                                {
+                                    var ids = string.Join(",", intList);
+                                    return $"({ConvertExpressionToString(method.Arguments[1])} IN ({ids}))";
+                                }
+                                else if (listValues.Value is IEnumerable<string> stringList)
+                                {
+                                    var ids = string.Join(",", stringList.Select(id => $"'{id}'"));
+                                    return $"({ConvertExpressionToString(method.Arguments[1])} IN ({ids}))";
+                                }
+                            }
+                        }
                         else
-                            return $"({ConvertExpressionToString(method.Object!)} LIKE ('%{ConvertExpressionToString(method.Arguments[0]).Replace("'", "")}%'))";
+                        {
+                            // method.Object null değilse, string veya başka bir nesne üzerinde Contains metodu çalıştırılıyor demektir
+                            var obj = ConvertExpressionToString(method.Object);
+                            var arg = ConvertExpressionToString(method.Arguments[0]);
+
+                            // Eğer method.Object ve method.Arguments[0] bir string ise LIKE ifadesi kullanılır
+                            if (method.Object.Type == typeof(string) && method.Arguments[0].Type == typeof(string))
+                            {
+                                return $"({obj} LIKE ('%{arg.Replace("'", "")}%'))";
+                            }
+                            else if (method.Object is ConstantExpression constExpr &&
+                                     (constExpr.Value is IEnumerable<int> || constExpr.Value is IEnumerable<string>))
+                            {
+                                // method.Object bir listeyi temsil eden ConstantExpression ise, IN ifadesi kullanılmalıdır
+                                if (constExpr.Value is IEnumerable<int> intList)
+                                {
+                                    var ids = string.Join(",", intList);
+                                    return $"({ConvertExpressionToString(method.Arguments[0])} IN ({ids}))";
+                                }
+                                else if (constExpr.Value is IEnumerable<string> stringList)
+                                {
+                                    var ids = string.Join(",", stringList.Select(id => $"'{id}'"));
+                                    return $"({ConvertExpressionToString(method.Arguments[0])} IN ({ids}))";
+                                }
+                            }
+                            else
+                            {
+                                // Başka tipler için burada uygun dönüşümler yapılabilir
+                                return $"--Method '{method.Method.Name}' not supported for non-string objects.--";
+                            }
+                        }
+                        break;
                     case "StartsWith":
                         return $"({ConvertExpressionToString(method.Object!)} LIKE '{ConvertExpressionToString(method.Arguments[0])}%')";
                     case "EndsWith":
