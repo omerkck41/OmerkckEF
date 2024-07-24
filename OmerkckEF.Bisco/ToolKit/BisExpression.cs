@@ -193,6 +193,12 @@ namespace OmerkckEF.Biscom.ToolKit
                         return $"({ConvertExpressionToString(method.Object!)} LIKE '{ConvertExpressionToString(method.Arguments[0])}%')";
                     case "EndsWith":
                         return $"({ConvertExpressionToString(method.Object!)} LIKE '%{ConvertExpressionToString(method.Arguments[0])}')";
+                    case "Format":
+                        // Interpolated string işlemi için
+                        var formatString = (ConstantExpression)method.Arguments[0];
+                        var args = method.Arguments.Skip(1).Select(ConvertExpressionToString).ToArray();
+                        var formattedString = string.Format((string)formatString.Value, args);
+                        return $"'{formattedString}'";
                     default:
                         return $"--Method '{method.Method.Name}' not supported.--";
                 }
