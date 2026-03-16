@@ -1,10 +1,25 @@
-﻿using OmerkckEF.Biscom.DBContext;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using OmerkckEF.Biscom.DBContext;
+using OmerkckEF.Biscom.ToolKit;
 
 namespace TestLab
 {
 	public static class ExFunction
 	{
-		public static EntityContext EntityContext { get; } = new(DBServerInfo);
+		private static EntityContext? _entityContext;
+		public static EntityContext EntityContext 
+		{ 
+			get
+			{
+				if (_entityContext == null)
+				{
+					var metadataProvider = new MetadataProvider();
+					var sqlGenerator = new SqlGenerator(metadataProvider);
+					_entityContext = new EntityContext(DBServerInfo, sqlGenerator, metadataProvider, NullLogger<EntityContext>.Instance);
+				}
+				return _entityContext;
+			}
+		}
 
 		public static DBServer DBServerInfo => new()
 		{

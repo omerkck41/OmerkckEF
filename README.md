@@ -1,80 +1,58 @@
-# OmerkckEF: An ADO.NET ORM Tool Supporting Multiple Databases
-## About
-OmerkckEF is an ADO.NET ORM (Object-Relational Mapping) tool designed to support multiple database systems. This application has a structure similar to Microsoft's EntityFramework and aims to work compatibly with different database systems. It provides more flexibility and control to its users, thereby making database operations more efficient.
+# OmerkckEF (Modern .NET 10 ORM)
 
-## Content
-### DBContext:
+OmerkckEF, ADO.NET üzerinde inşa edilmiş, hafif (lightweight), yüksek performanslı ve modern .NET 10 özelliklerini kullanan bir ORM kütüphanesidir. Geleneksel ORM'lerin karmaşıklığından ve performans yükünden kaçınmak isteyenler için "Zero-Allocation" ve "Strict-SOLID" prensipleriyle tasarlanmıştır.
 
-* `Bisco.cs`: Contains database connection information.
-* `DBServer.cs`: Contains database server information.
-* `EntityContext.cs`: Class used for performing operations over the Entity framework.
+## 🚀 Öne Çıkan Özellikler
 
-### DBContext > DBSchemas:
+- **.NET 10.0 LTS:** En güncel .NET runtime avantajları.
+- **High Performance Mapping:** Expression Trees ve Caching kullanarak Reflection maliyetini sıfıra indirir.
+- **SearchValues<char> & SIMD:** SQL özel karakterleri donanım hızlandırmalı taranır ve temizlenir.
+- **Sequential GUID (v7):** Yüksek veritabanı index performansı için sıralı GUID desteği.
+- **Enterprise Ready (Tier 3):** 
+  - **Structured Logging:** `Serilog` entegrasyonu ile tüm DB süreçleri loglanabilir.
+  - **Health Checks:** Standart `.NET HealthCheck` API desteği ile veritabanı sağlığı izlenebilir.
+- **Dependency Injection (DI):** Modern ASP.NET Core projeleriyle tam uyumlu.
+- **SQL Injection Protection:** Tamamen parametreli sorgu yapısı ve yüksek performanslı sanitizasyon.
 
-* `MySqlDAL.cs`: Performs MySQL database operations.
-* `SqlDAL.cs`: Performs Microsoft SQL Server operations.
-* `OracleDAL.cs`: Performs Oracle database operations.
-* `PostgreSQLDAL.cs`: Performs PostgreSQL database operations.
+## 📦 Kurulum
 
-### Interface:
+`.csproj` dosyanıza `AddOmerkckEF` extension metodunu ekleyerek başlayın:
 
-* `IDALFactory.cs`: Interface for Data Access Layer factory classes.
-* `IORM.cs`: Interface for ORM operations.
-
-### Repositories:
-
-* `DALFactoryBase.cs`: Abstract base class used to create the relevant DAL class depending on the database type.
-* `ORMBase.cs`: Base class of ORM operations.
-
-### ToolKit:
-
-* `Attributes.cs`: Contains custom attributes.
-* `Enums.cs`: Contains enums used throughout the application.
-* `BisExpression.cs`: Class used to create an expression tree.
-* `Extensions.cs`: Contains extension methods used throughout the application.
-* `Result.cs`: Holds the result of database operations.
-* `Tools.cs`: Contains general-purpose helper functions.
-
-### Convert Classes to Table:
-
-This repository contains a set of methods for interacting with a MySQL database schema. These methods enable various operations such as creating tables, dropping tables, updating tables, and modifying table columns. Each method is designed to provide flexibility and ease of use when working with database schemas in a .NET environment.
-
-The methods provided in this repository include:
-* `CreateTable:` Creates a new table in the specified schema or the default database schema if none is provided.
-* `DropTable:` Drops an existing table from the specified schema or the default database schema if none is provided.
-* `UpdateTable:` Updates an existing table in the specified schema or the default database schema if none is provided. This method allows adding new columns to the table based on the provided class properties.
-* `RemoveTableColumn:` Removes a column from an existing table in the specified schema or the default database schema if none is provided. This method also supports removing all columns from the table.
-
-Additionally, there is a method called AddAttributeToTableColumn which allows adding specific attributes to columns in an existing table. This method provides flexibility in modifying column properties dynamically.
-Feel free to use these methods in your projects to simplify database schema management tasks. If you have any questions or suggestions, please don't hesitate to reach out.
-
-
-### Usage
-OmerkckEF is designed to support applications running on a wide variety of database systems.
-Each DAL class under DBSchemas can perform operations specific to the relevant database system.
-To use this structure, first, you need to edit your database connection information in the `Bisco.cs` and `DBServer.cs` files.
-Then, you can perform your database operations using the DAL class appropriate to the relevant database.
-
-```cs
-public static class ExFunction
-{
-  private static EntityContext? _entityContext;
-  public static EntityContext? OmerkckEfContexts
-  {
-      get
-      {
-          _entityContext ??= new EntityContext(new DBServer
-          {
-              DbIp = "127.0.0.1",
-              DbSchema = "rootDB",
-              DbUser = "root",
-              DbPassword = "12345",
-              DbSslMode = "Required"
-          });
-          return _entityContext;
-      }
-  }
-}
-
-// ex: _ = ExFunction.OmerkckEfContexts;
+```csharp
+builder.Services.AddOmerkckEF(config => {
+    config.DbServerId = 1;
+    config.DbSchema = "YourDatabase";
+    config.DbUser = "root";
+    config.DbPassword = "password";
+});
 ```
+
+## 🛠️ Kurumsal Özelliklerin Kullanımı
+
+### Sağlık Kontrolü (Health Checks)
+Projenize HealthCheck endpoint'lerini eklemeniz yeterlidir:
+```csharp
+app.MapHealthChecks("/health");
+```
+
+### Loglama
+Kütüphane içinde oluşan tüm hatalar, DI üzerinden gelen `ILogger` aracılığıyla loglanır. Serilog ile loglarınızı istediğiniz bir sink'e (Elasticsearch, File, Console) aktarabilirsiniz.
+
+### Sequential GUID
+Veritabanı index performansı için `Guid.NewGuid()` yerine kütüphane içindeki sıralı GUID yapısını kullanabilirsiniz:
+```csharp
+var sequentialId = metadataProvider.CreateSequentialGuid();
+```
+
+## 🧪 Unit Test
+
+Proje içinde `OmerkckEF.Bisco.Tests` klasörü altında DI, Mapping ve Health Check testleri bulunmaktadır. Testleri çalıştırmak için:
+```bash
+dotnet test
+```
+
+## 📄 Mimari Kararlar (ADR)
+Proje gelişimi sırasında alınan tüm kritik mimari kararlar `docs/adr/` klasörü altında belgelenmiştir.
+
+---
+*OmerkckEF - Sade, Hızlı, Modern.*

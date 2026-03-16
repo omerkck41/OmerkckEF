@@ -13,7 +13,7 @@ namespace OmerkckEF.Biscom.DBContext
         protected IDALFactory DALFactory { get; set; }
         protected DbConnectionStringBuilder ConnectionStringBuilder { get; set; }
         protected DbConnection? MyConnection { get; set; }
-        private DBServer DBServerInfo { get; set; }
+        protected DBServer DBServerInfo { get; set; }
         public string? DBSchemaName => DBServerInfo?.DbSchema;
         #endregion
 
@@ -49,15 +49,9 @@ namespace OmerkckEF.Biscom.DBContext
 
                 return true;
             }
-            catch
+            catch (Exception ex)
             {
-                //throw new Exception(ex.ErrorCode switch
-                //{
-                //    0 => "Server bağlantı hatası. Sistem yöneticisi ile görüşün.",
-                //    1042 => "Server bulunamadı. DNS adresi yanlış olabilir.",
-                //    1045 => "Server bağlantısı için gerekli Kullanıcı adı veya Şifre yanlış. Sistem yöneticisi ile görüşün.",
-                //    _ => "Connection Error : " + ex.Message,
-                //});
+                // TIER 3: Logging will be added here via derived classes or DI
                 CloseConnection();
                 return false;
             }

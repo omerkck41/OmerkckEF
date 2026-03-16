@@ -197,7 +197,8 @@ namespace OmerkckEF.Biscom.ToolKit
                         // Interpolated string işlemi için
                         var formatString = (ConstantExpression)method.Arguments[0];
                         var args = method.Arguments.Skip(1).Select(ConvertExpressionToString).ToArray();
-                        var formattedString = string.Format((string)formatString.Value, args);
+                        var format = formatString.Value?.ToString() ?? string.Empty;
+                        var formattedString = string.Format(format, args);
                         return $"'{formattedString}'";
                     default:
                         return $"--Method '{method.Method.Name}' not supported.--";

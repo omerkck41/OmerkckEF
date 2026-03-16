@@ -1,4 +1,5 @@
 ﻿using OmerkckEF.Biscom.ToolKit;
+using OmerkckEF.Biscom.Interfaces;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
@@ -7,57 +8,48 @@ using System.Text;
 using static OmerkckEF.Biscom.ToolKit.Enums;
 using static OmerkckEF.Biscom.ToolKit.Tools;
 
+using Microsoft.Extensions.Logging;
+
 namespace OmerkckEF.Biscom.DBContext
 {
-    public class EntityContext(DBServer dbServerInfo) : Bisco(dbServerInfo)
+    public class EntityContext(
+        DBServer dbServerInfo, 
+        ISqlGenerator sqlGenerator, 
+        IMetadataProvider metadataProvider,
+        ILogger<EntityContext> logger) : Bisco(dbServerInfo)
     {
-        private readonly DBServer dbServerInfo = dbServerInfo;
-
         private string? QueryString { get; set; }
         string tableName = string.Empty;
 
         #region Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
         #region Read		
-        public Result<List<T>> GetMapClass<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class
+        public Result<List<T>> GetMapClass<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
             try
             {
                 if (!OpenConnection(schema)) return new Result<List<T>> { IsSuccess = false, Message = "The connection couldn't be opened or created." };
 
-                schema ??= DBSchemaName;
+                schema ??= DBSchemaName ?? string.Empty;
                 tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
                 queryString ??= $"SELECT * FROM {tableName}";
 
                 using var command = ExeCommand(queryString, parameters, commandType);
                 using var reader = command.ExecuteReader(CommandBehavior.CloseConnection);
-                var entities = new List<T>();
-
-                while (reader.Read())
-                {
-                    var entity = Activator.CreateInstance<T>();
-
-                    for (int i = 0; i < reader.FieldCount; i++)
-                    {
-                        var propertyName = reader.GetName(i);
-                        var propertyValue = reader.GetValue(i);
-                        var propertyInfo = typeof(T).GetProperty(propertyName);
-                        if (propertyName != null && propertyValue != null && propertyInfo != null)
-                            ParsePrimitive(propertyInfo, entity, propertyValue);
-                    }
-
-                    entities.Add(entity);
-                }
+                
+                // High Performance Mapping using Expression Trees
+                var entities = EntityMapper.MapList<T>(reader, metadataProvider);
 
                 return new Result<List<T>> { IsSuccess = true, Data = entities };
             }
             catch (DbException ex)
             {
+                logger.LogError(ex, "Executing Get Mapped Class Error for table {TableName}", tableName);
                 CloseConnection();
                 return new Result<List<T>> { IsSuccess = false, Message = $"Executing Get Mapped Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<List<T>> GetMapClass<T>(Expression<Func<T, bool>> filter) where T : class
+        public Result<List<T>> GetMapClass<T>(Expression<Func<T, bool>> filter) where T : class, new()
         {
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
 
@@ -68,9 +60,9 @@ namespace OmerkckEF.Biscom.DBContext
 
             return GetMapClass<T>(QueryString);
         }
-        public Result<T> GetMapClassById<T>(object id) where T : class
+        public Result<T> GetMapClassById<T>(object id) where T : class, new()
         {
-            var entity = Activator.CreateInstance<T>();
+            var entity = new T();
 
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
             QueryString = $"Select * from {tableName} where {entity.GetKeyAttribute<T>()}={id}";
@@ -81,14 +73,14 @@ namespace OmerkckEF.Biscom.DBContext
                 ? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
                 : new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found.\n" + exeResult.Message };
         }
-        public Result<List<T>> GetMapClassByWhere<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public Result<List<T>> GetMapClassByWhere<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
             QueryString = $"Select * from {tableName} {whereCond}";
 
             return GetMapClass<T>(QueryString, parameters, DBSchemaName, commandType);
         }
-        public Result<List<T>> GetMapClassBySchema<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public Result<List<T>> GetMapClassBySchema<T>(string? schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
             schema ??= DBSchemaName;
             tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
@@ -100,49 +92,45 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Create
-        private Result<int> DoInsert<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
+        private Result<int> DoInsert<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             try
             {
                 if (entity == null) return new Result<int> { IsSuccess = false, Message = "Entity Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this, schema);
-                if (!string.IsNullOrEmpty(check)) return new Result<int> { IsSuccess = false, Message = check };
+                // TIER 3: Attributes and Validation can be moved to a validator service later.
+                // For now, using metadataProvider if possible or keeping for stability.
+                
+                var (sqlQuery, parameters) = sqlGenerator.BuildInsertQuery(entity);
+                var identityColumn = metadataProvider.GetKeyAttributeName(entity);
 
-                var getColmAndParams = GetInsertColmAndParams<T>(entity);
-                Dictionary<string, object> parameters = getColmAndParams?.Item2 ?? [];
-
-                var identityColumn = entity.GetKeyAttribute<T>();
-                var ReturnIdentity = DBServer.DBServerInfo?.DBModel switch
+                var returnIdentity = DBServerInfo.DBModel switch
                 {
                     DataBaseType.MySql => "; SELECT @@Identity;",
                     DataBaseType.Sql => "; SELECT SCOPE_IDENTITY();",
                     DataBaseType.Oracle => $" RETURNING {identityColumn} INTO :new_id;",
                     DataBaseType.PostgreSQL => "; SELECT LASTVAL();",
-                    DataBaseType.None => "; SELECT @@Identity;",
                     DataBaseType.SQLite => "; SELECT last_insert_rowid();",
-                    null => "; SELECT @@Identity;",
                     _ => "; SELECT @@Identity;",
                 };
 
                 schema ??= DBSchemaName;
                 tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
-                var sqlQuery = $"Insert Into {tableName} {getColmAndParams?.Item1}" + ReturnIdentity;
-
+                var finalSql = $"INSERT INTO {tableName} " + sqlQuery.Substring(sqlQuery.IndexOf("(") ) + returnIdentity;
 
                 if (getById)
                 {
-                    var exeResult = RunScaler(schema, sqlQuery, parameters);
+                    var exeResult = RunScaler(schema, finalSql, parameters);
                     return !exeResult.IsSuccess
                            ? new Result<int> { IsSuccess = false, Message = "Database DoInsert RunScaler error.\n" + exeResult.Message }
-                           : new Result<int> { IsSuccess = true, Data = exeResult.Data?.MyToInt() ?? 0 };
+                           : new Result<int> { IsSuccess = true, Data = Convert.ToInt32(exeResult.Data ?? 0) };
                 }
                 else
                 {
-                    var affectedRows = RunNonQuery(schema, sqlQuery, parameters, transaction);
+                    var affectedRows = RunNonQuery(schema, finalSql, parameters, transaction);
                     return !affectedRows.IsSuccess
                            ? new Result<int> { IsSuccess = false, Message = "Database DoInsert RunNonQuery error.\n" + affectedRows.Message }
-                           : new Result<int> { IsSuccess = true, Data = affectedRows.Data.MyToInt() ?? 0 };
+                           : new Result<int> { IsSuccess = true, Data = affectedRows.Data };
                 }
             }
             catch (Exception ex)
@@ -152,16 +140,16 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public Result<int> DoMapInsert<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
+        public Result<int> DoMapInsert<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             return DoInsert<T>(schema ?? DBSchemaName, entity, getById, transaction);
         }
-        public Result<int> DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class
+        public Result<int> DoMapInsert<T>(T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             return DoInsert<T>(DBSchemaName, entity, getById, transaction);
         }
 
-        public Result<bool> DoMapMultiInsert<T>(string? schema, IEnumerable<T> entityList) where T : class
+        public Result<bool> DoMapMultiInsert<T>(string? schema, IEnumerable<T> entityList) where T : class, new()
         {
             try
             {
@@ -192,32 +180,28 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsert Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapMultiInsert<T>(IEnumerable<T> entityList) where T : class
+        public Result<bool> DoMapMultiInsert<T>(IEnumerable<T> entityList) where T : class, new()
         {
             return DoMapMultiInsert<T>(DBSchemaName, entityList);
         }
         #endregion
 
         #region Update
-        private Result<bool> DoUpdate<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
+        private Result<bool> DoUpdate<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class, new()
         {
             try
             {
                 if (entity == null || !fields.Any()) return new Result<bool> { IsSuccess = false, Message = "Entity or Fields Null" };
 
-                string check = CheckAttributeColumn<T>(entity, this, schema);
-                if (!string.IsNullOrEmpty(check)) return new Result<bool> { IsSuccess = false, Message = check };
-
-
-                var identityColumn = entity.GetKeyAttribute<T>();
-                var _fields = string.Join(",", fields.Select(x => string.Format("{0}=@{0}", x.ToString())).ToList());
-                var getUpdateColmParams = GetUpdateColmAndParams<T>(entity, fields);
+                var (sqlQuery, parameters) = sqlGenerator.BuildUpdateQuery(entity, fields);
 
                 schema ??= DBSchemaName;
                 tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
-                var sqlQuery = $"Update {tableName} set {_fields} where {identityColumn}=@{identityColumn};";
-                var exeResult = RunNonQuery(schema, sqlQuery, getUpdateColmParams?.Item2, transaction);
-
+                
+                // Adjusting the generated SQL to include schema
+                var finalSql = sqlQuery.Replace($"UPDATE {typeof(T).Name}", $"UPDATE {tableName}");
+                
+                var exeResult = RunNonQuery(schema, finalSql, parameters, transaction);
 
                 return !exeResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database DoUpdate RunNonQuery error.\n" + exeResult.Message }
@@ -229,7 +213,7 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoUpdate Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapUpdate<T>(string? schema, T currentT, bool transaction = false) where T : class
+        public Result<bool> DoMapUpdate<T>(string? schema, T currentT, bool transaction = false) where T : class, new()
         {
             var identityValue = typeof(T).GetProperties()
                                          .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
@@ -247,11 +231,11 @@ namespace OmerkckEF.Biscom.DBContext
 
             return DoUpdate<T>(schema, currentT, fields, transaction);
         }
-        public Result<bool> DoMapUpdate<T>(T currentT, bool transaction = false) where T : class
+        public Result<bool> DoMapUpdate<T>(T currentT, bool transaction = false) where T : class, new()
         {
             return DoMapUpdate<T>(DBSchemaName, currentT, transaction);
         }
-        public Result<bool> DoMapUpdateCompositeTable<T>(string? schema, T currentT, params object[] fieldValue) where T : class
+        public Result<bool> DoMapUpdateCompositeTable<T>(string? schema, T currentT, params object[] fieldValue) where T : class, new()
         {
             //If there is no KeyAttribute, it is a Composite table.
             string identityColm = (string)currentT.GetKeyAttribute<T>();
@@ -285,7 +269,7 @@ namespace OmerkckEF.Biscom.DBContext
                    ? new Result<bool> { IsSuccess = false, Message = "Database DoMapUpdateCompositeTable RunNonQuery error.\n" + exeResult.Message }
                    : new Result<bool> { IsSuccess = true, Data = exeResult.Data > 0 };
         }
-        public Result<bool> DoMapUpdateCompositeTable<T>(T currentT, params object[] fieldValue) where T : class
+        public Result<bool> DoMapUpdateCompositeTable<T>(T currentT, params object[] fieldValue) where T : class, new()
         {
             return DoMapUpdateCompositeTable<T>(null, currentT, fieldValue);
         }
@@ -315,28 +299,24 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Delete
-        public Result<bool> DoMapDelete<T>(string? schema, T entity, bool transaction = false) where T : class
+        public Result<bool> DoMapDelete<T>(string? schema, T entity, bool transaction = false) where T : class, new()
         {
             try
             {
                 if (entity == null) return new Result<bool> { IsSuccess = false, Message = "Entity Null" };
 
+                var identityColumn = metadataProvider.GetKeyAttributeName(entity);
+                var identityValue = metadataProvider.GetEntityValue<T, KeyAttribute>(entity);
 
-                var identityColumn = entity.GetKeyAttribute<T>();
-                //var identityValue = typeof(T).GetProperties()
-                //                             .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Any())
-                //                             .Select(s => s.GetValue(entity)).FirstOrDefault();
-                var identityValue = entity.GetEntityValue<T, KeyAttribute>();
-
-                if (identityValue == null || (int)identityValue == 0)
-                    return new Result<bool> { IsSuccess = false, Message = $"{identityColumn}; Identity Colum not found." };
-
+                if (identityValue == null)
+                    return new Result<bool> { IsSuccess = false, Message = $"{identityColumn}; Identity Column not found or null." };
 
                 schema ??= DBSchemaName;
                 tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
-                var sqlQuery = $"Delete from {tableName} where {identityColumn}=@{identityColumn};";
-                var exeResult = RunNonQuery(schema, sqlQuery, identityValue?.CreateParameters(identityColumn.ToString() ?? "Id"), transaction);
-
+                var sqlQuery = $"DELETE FROM {tableName} WHERE {identityColumn} = @{identityColumn};";
+                
+                var parameters = new Dictionary<string, object> { { $"@{identityColumn}", identityValue } };
+                var exeResult = RunNonQuery(schema, sqlQuery, parameters, transaction);
 
                 return !exeResult.IsSuccess
                        ? new Result<bool> { IsSuccess = false, Message = "Database DoMapDelete RunNonQuery error.\n" + exeResult.Message }
@@ -348,12 +328,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDelete Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapDelete<T>(T entity, bool transaction = false) where T : class
+        public Result<bool> DoMapDelete<T>(T entity, bool transaction = false) where T : class, new()
         {
             return DoMapDelete<T>(DBSchemaName, entity, transaction);
         }
 
-        public Result<bool> DoMapDelete<T>(Expression<Func<T, bool>> filter) where T : class
+        public Result<bool> DoMapDelete<T>(Expression<Func<T, bool>> filter) where T : class, new()
         {
             try
             {
@@ -380,7 +360,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public Result<bool> DoMapDeleteAll<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class
+        public Result<bool> DoMapDeleteAll<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -410,12 +390,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAll Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
+        public Result<bool> DoMapDeleteAll<T>(IEnumerable<T> entityList, bool transaction = false) where T : class, new()
         {
             return DoMapDeleteAll(DBSchemaName, entityList, transaction);
         }
 
-        public Result<bool> DoMapDeleteWithField<T>(string? schema, string fieldName, object fieldValue, bool transaction = false) where T : class
+        public Result<bool> DoMapDeleteWithField<T>(string? schema, string fieldName, object fieldValue, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -442,12 +422,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteWithField Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
+        public Result<bool> DoMapDeleteWithField<T>(string fieldName, object fieldValue, bool transaction = false) where T : class, new()
         {
             return DoMapDeleteWithField<T>(DBSchemaName, fieldName, fieldValue, transaction);
         }
 
-        public Result<bool> DoMapDeleteCompositeTable<T>(string? schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
+        public Result<bool> DoMapDeleteCompositeTable<T>(string? schema, Dictionary<string, object> parameters, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -470,7 +450,7 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteCompositeTable Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction) where T : class
+        public Result<bool> DoMapDeleteCompositeTable<T>(Dictionary<string, object> parameters, bool transaction) where T : class, new()
         {
             return DoMapDeleteCompositeTable<T>(DBSchemaName, parameters, transaction);
         }
@@ -483,7 +463,7 @@ namespace OmerkckEF.Biscom.DBContext
         #region ASYNC Mapping Methods /// CRUD = RCUD :)) Read, Create, Update, Delete ///
 
         #region Read
-        public async Task<Result<List<T>>> GetMapClassAsync<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class
+        public async Task<Result<List<T>>> GetMapClassAsync<T>(string? queryString = null, Dictionary<string, object>? parameters = null, string? schema = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
             try
             {
@@ -499,7 +479,7 @@ namespace OmerkckEF.Biscom.DBContext
 
                 while (await reader.ReadAsync())
                 {
-                    var entity = Activator.CreateInstance<T>();
+                    var entity = new T();
 
                     for (int i = 0; i < reader.FieldCount; i++)
                     {
@@ -521,16 +501,16 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<List<T>> { IsSuccess = false, Message = $"Executing GetMapClassAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<List<T>>> GetMapClassAsync<T>(Expression<Func<T, bool>> filter) where T : class
+        public async Task<Result<List<T>>> GetMapClassAsync<T>(Expression<Func<T, bool>> filter) where T : class, new()
         {
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
             QueryString = $"Select * from {tableName} where {filter.ConvertExpressionToQueryString()}";
 
             return await GetMapClassAsync<T>(QueryString);
         }
-        public async Task<Result<T>> GetMapClassByIdAsync<T>(object id) where T : class
+        public async Task<Result<T>> GetMapClassByIdAsync<T>(object id) where T : class, new()
         {
-            var entity = Activator.CreateInstance<T>();
+            var entity = new T();
 
 
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
@@ -542,7 +522,7 @@ namespace OmerkckEF.Biscom.DBContext
                 ? new Result<T> { IsSuccess = true, Data = exeResult.Data?.FirstOrDefault() }
                 : new Result<T> { IsSuccess = false, Message = "The data is incorrect or not found.\n" + exeResult.Message };
         }
-        public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public async Task<Result<List<T>>> GetMapClassByWhereAsync<T>(string whereCond, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
 
             tableName = string.IsNullOrEmpty(DBSchemaName) ? typeof(T).Name : $"{DBSchemaName}.{typeof(T).Name}";
@@ -550,7 +530,7 @@ namespace OmerkckEF.Biscom.DBContext
 
             return await GetMapClassAsync<T>(QueryString, parameters, DBSchemaName, commandType);
         }
-        public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class
+        public async Task<Result<List<T>>> GetMapClassBySchemaAsync<T>(string? schema, string? whereCond = null, Dictionary<string, object>? parameters = null, CommandType commandType = CommandType.Text) where T : class, new()
         {
             schema ??= DBSchemaName;
             tableName = string.IsNullOrEmpty(schema) ? typeof(T).Name : $"{schema}.{typeof(T).Name}";
@@ -561,7 +541,7 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Create
-        private async Task<Result<int>> DoInsertAsync<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
+        private async Task<Result<int>> DoInsertAsync<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -612,16 +592,16 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public async Task<Result<int>> DoMapInsertAsync<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class
+        public async Task<Result<int>> DoMapInsertAsync<T>(string? schema, T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             return await DoInsertAsync<T>(schema ?? DBSchemaName, entity, getById, transaction);
         }
-        public async Task<Result<int>> DoMapInsertAsync<T>(T entity, bool getById = false, bool transaction = false) where T : class
+        public async Task<Result<int>> DoMapInsertAsync<T>(T entity, bool getById = false, bool transaction = false) where T : class, new()
         {
             return await DoInsertAsync<T>(DBSchemaName, entity, getById, transaction);
         }
 
-        public async Task<Result<bool>> DoMapMultiInsertAsync<T>(string? schema, IEnumerable<T> entityList) where T : class
+        public async Task<Result<bool>> DoMapMultiInsertAsync<T>(string? schema, IEnumerable<T> entityList) where T : class, new()
         {
             try
             {
@@ -651,14 +631,14 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMultiMapInsertAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapMultiInsertAsync<T>(IEnumerable<T> entityList) where T : class
+        public async Task<Result<bool>> DoMapMultiInsertAsync<T>(IEnumerable<T> entityList) where T : class, new()
         {
             return await DoMapMultiInsertAsync<T>(DBSchemaName, entityList);
         }
         #endregion
 
         #region Update
-        private async Task<Result<bool>> DoUpdateAsync<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class
+        private async Task<Result<bool>> DoUpdateAsync<T>(string? schema, T entity, IEnumerable<string> fields, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -687,7 +667,7 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoUpdateAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapUpdateAsync<T>(string? schema, T currentT, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapUpdateAsync<T>(string? schema, T currentT, bool transaction = false) where T : class, new()
         {
             var identityValue = typeof(T).GetProperties()
                                          .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
@@ -705,7 +685,7 @@ namespace OmerkckEF.Biscom.DBContext
             return await DoUpdateAsync<T>(schema, currentT, fields, transaction);
 
         }
-        public async Task<Result<bool>> DoMapUpdateAsync<T>(T currentT, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapUpdateAsync<T>(T currentT, bool transaction = false) where T : class, new()
         {
             var identityValue = typeof(T).GetProperties()
                                          .Where(x => x.GetCustomAttributes(typeof(KeyAttribute), true).Length > 0)
@@ -724,7 +704,7 @@ namespace OmerkckEF.Biscom.DBContext
         #endregion
 
         #region Delete
-        public async Task<Result<bool>> DoMapDeleteAsync<T>(string? schema, T entity, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteAsync<T>(string? schema, T entity, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -754,12 +734,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction) where T : class
+        public async Task<Result<bool>> DoMapDeleteAsync<T>(T entity, bool transaction) where T : class, new()
         {
             return await DoMapDeleteAsync<T>(DBSchemaName, entity, transaction);
         }
 
-        public async Task<Result<bool>> DoMapDeleteAsync<T>(Expression<Func<T, bool>> filter) where T : class
+        public async Task<Result<bool>> DoMapDeleteAsync<T>(Expression<Func<T, bool>> filter) where T : class, new()
         {
             try
             {
@@ -786,7 +766,7 @@ namespace OmerkckEF.Biscom.DBContext
             }
         }
 
-        public async Task<Result<bool>> DoMapDeleteAllAsync<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteAllAsync<T>(string? schema, IEnumerable<T> entityList, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -815,12 +795,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteAllAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapDeleteAllAsync<T>(IEnumerable<T> entityList, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteAllAsync<T>(IEnumerable<T> entityList, bool transaction = false) where T : class, new()
         {
             return await DoMapDeleteAllAsync(DBSchemaName, entityList, transaction);
         }
 
-        public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string? schema, string fieldName, object fieldValue, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string? schema, string fieldName, object fieldValue, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -847,12 +827,12 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteWithFieldAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string fieldName, object fieldValue, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteWithFieldAsync<T>(string fieldName, object fieldValue, bool transaction = false) where T : class, new()
         {
             return await DoMapDeleteWithFieldAsync<T>(DBSchemaName, fieldName, fieldValue, transaction);
         }
 
-        public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(string? schema, Dictionary<string, object> parameters, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(string? schema, Dictionary<string, object> parameters, bool transaction = false) where T : class, new()
         {
             try
             {
@@ -875,7 +855,7 @@ namespace OmerkckEF.Biscom.DBContext
                 return new Result<bool> { IsSuccess = false, Message = $"Executing DoMapDeleteCompositeTableAsync Class Error: {ex.GetType().FullName}: {ex.Message}" };
             }
         }
-        public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class
+        public async Task<Result<bool>> DoMapDeleteCompositeTableAsync<T>(Dictionary<string, object> parameters, bool transaction = false) where T : class, new()
         {
             return await DoMapDeleteCompositeTableAsync<T>(DBSchemaName, parameters, transaction);
         }
@@ -906,9 +886,9 @@ namespace OmerkckEF.Biscom.DBContext
             databaseName ??= DBSchemaName;
             string query = "CREATE DATABASE IF NOT EXISTS " + databaseName;
 
-            dbServerInfo.DbSchema = null;
+            DBServerInfo.DbSchema = null;
 
-            ConnectionStringBuilder = DALFactory.IDbConnectionStringBuilder(dbServerInfo);
+            ConnectionStringBuilder = DALFactory.IDbConnectionStringBuilder(DBServerInfo);
 
 
             //Create Database in MySql
@@ -927,7 +907,7 @@ namespace OmerkckEF.Biscom.DBContext
         /// <example>
         /// var result = CreateTable<YourTableType>("your_schema_name");
         /// </example>
-        public Result<bool> CreateTable<T>(string? schema = null) where T : class
+        public Result<bool> CreateTable<T>(string? schema = null) where T : class, new()
         {
             try
             {
@@ -981,7 +961,7 @@ namespace OmerkckEF.Biscom.DBContext
         /// <example>
         /// var result = DropTable<YourTableType>("your_schema_name");
         /// </example>
-        public Result<bool> DropTable<T>(string? schema = null) where T : class
+        public Result<bool> DropTable<T>(string? schema = null) where T : class, new()
         {
             try
             {
@@ -1009,7 +989,7 @@ namespace OmerkckEF.Biscom.DBContext
         /// <example>
         /// var result = UpdateTable<YourTableType>("your_schema_name");
         /// </example>
-        public Result<bool> UpdateTable<T>(string? schema = null) where T : class
+        public Result<bool> UpdateTable<T>(string? schema = null) where T : class, new()
         {
             try
             {
@@ -1088,7 +1068,7 @@ namespace OmerkckEF.Biscom.DBContext
         /// <example>
         /// var result = RemoveTableColumn<YourTableType>("column_name", "your_schema_name");
         /// </example>
-        public Result<bool> RemoveTableColumn<T>(string? columnName = null, string? schema = null) where T : class
+        public Result<bool> RemoveTableColumn<T>(string? columnName = null, string? schema = null) where T : class, new()
         {
             try
             {
@@ -1159,7 +1139,7 @@ namespace OmerkckEF.Biscom.DBContext
         /// <example>
         /// var result = AddAttributeToTableColumn<YourTableType>(TableColumnAttribute.PrimaryKey, "column_name", "your_schema_name");
         /// </example>
-        public Result<bool> AddAttributeToTableColumn<T>(TableColumnAttribute attribute, string propertyName, string? schema = null) where T : class
+        public Result<bool> AddAttributeToTableColumn<T>(TableColumnAttribute attribute, string propertyName, string? schema = null) where T : class, new()
         {
             try
             {

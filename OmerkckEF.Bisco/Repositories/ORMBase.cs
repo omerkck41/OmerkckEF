@@ -1,4 +1,5 @@
-﻿using OmerkckEF.Biscom.DBContext;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using OmerkckEF.Biscom.DBContext;
 using OmerkckEF.Biscom.Interfaces;
 using OmerkckEF.Biscom.ToolKit;
 using System.Data;
@@ -27,7 +28,21 @@ namespace OmerkckEF.Biscom.Repositories
 
 
         #region Properties
-        private static EntityContext DBContext { get; } = new(DBServer.DBServerInfo ?? new());
+        private static EntityContext? _dbContext;
+        private static EntityContext DBContext
+        {
+            get
+            {
+                if (_dbContext == null)
+                {
+                    var metadataProvider = new MetadataProvider();
+                    var sqlGenerator = new SqlGenerator(metadataProvider);
+                    var dbServer = DBServer.DBServerInfo ?? new DBServer();
+                    _dbContext = new EntityContext(dbServer, sqlGenerator, metadataProvider, NullLogger<EntityContext>.Instance);
+                }
+                return _dbContext;
+            }
+        }
         #endregion
 
 

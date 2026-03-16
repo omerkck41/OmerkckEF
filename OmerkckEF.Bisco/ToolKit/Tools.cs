@@ -191,6 +191,7 @@ namespace OmerkckEF.Biscom.ToolKit
         }
         internal static string GetDefaultValue(PropertyInfo property)
         {
+            if (property.DeclaringType == null) return string.Empty;
             var defaultValue = property.GetValue(Activator.CreateInstance(property.DeclaringType));
             if (defaultValue == null) return string.Empty;
 
